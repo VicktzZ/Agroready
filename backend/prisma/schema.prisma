@@ -1,0 +1,72 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  // imports sem ".ts" para o tsc/nest build gerar requires válidos
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TipoEntidade {
+  PRAGA
+  DOENCA
+  CULTURA
+}
+
+model TermoNer {
+  id    Int          @id @default(autoincrement())
+  tipo  TipoEntidade
+  termo String       @unique
+}
+
+model Destino {
+  id     String            @id // ex.: "ue"
+  nome   String
+  nomeEn String
+  regras RegraExportacao[]
+}
+
+model Cultura {
+  id     String            @id // ex.: "soja"
+  nome   String
+  nomeEn String
+  regras RegraExportacao[]
+}
+
+/// Exigências por destino × cultura (ilustrativas).
+model RegraExportacao {
+  id        Int      @id @default(autoincrement())
+  destinoId String
+  culturaId String
+  maxDias   Int /// idade máxima da inspeção em relação ao embarque
+  bloqueios String[] /// pragas/doenças que exigem tratamento antes do embarque
+  docs      String[] /// documentos confirmados manualmente pelo produtor
+  destino   Destino  @relation(fields: [destinoId], references: [id], onDelete: Cascade)
+  cultura   Cultura  @relation(fields: [culturaId], references: [id], onDelete: Cascade)
+
+  @@unique([destinoId, culturaId])
+}
+
+model Bioma {
+  id              String @id // ex.: "cerrado"
+  nome            String
+  reservaLegalMin Int /// % mínimo de Reserva Legal (Código Florestal)
+}
+
+model PraticaCarbono {
+  id              String @id // ex.: "ilpf"
+  nome            String
+  /// Fator ILUSTRATIVO de remoção/redução em tCO2e por hectare por ano.
+  fatorTco2eHaAno Float
+}
+
+model Laudo {
+  id        String   @id @default(uuid())
+  texto     String
+  numero    String?
+  entidades Json /// resultado do NER (itens + resumo)
+  createdAt DateTime @default(now())
+}

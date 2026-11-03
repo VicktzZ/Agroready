@@ -1,6 +1,6 @@
 /* ==========================================================================
    chat.js — componente de chat reutilizado pelo ExportBot e pelo CarbonBot.
-   Na Sprint 2 o `respond` será substituído por uma chamada à API FastAPI.
+   `respond` é assíncrono: chama a API NestJS e devolve o HTML da resposta.
    ========================================================================== */
 
 function createChat(root, { botName, greeting, chips = [], respond }) {
@@ -34,11 +34,17 @@ function createChat(root, { botName, greeting, chips = [], respond }) {
     });
   }
 
-  function ask(text) {
+  async function ask(text) {
     const t = text.trim();
     if (!t) return;
     add("user", escapeHtml(t));
-    botSay(respond(t));
+    const typing = add("bot", '<span class="typing"><i></i><i></i><i></i></span>');
+    try {
+      typing.innerHTML = await respond(t);
+    } catch (e) {
+      typing.innerHTML = `<span class="muted">Não consegui falar com o servidor: ${escapeHtml(e.message)}</span>`;
+    }
+    log.scrollTop = log.scrollHeight;
   }
 
   chips.forEach((label) => {
