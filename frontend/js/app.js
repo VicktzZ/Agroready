@@ -2,10 +2,11 @@
    app.js — roteamento (hash), estado e telas do AgroReady
    ========================================================================== */
 
-const STORE_KEY = "agroready-state-v1";
+const STORE_KEY = "agroready-state-v2";
 const state = {
+  laudoId: null,        // laudo salvo no backend (POST /api/laudos)
   laudoText: "",
-  ent: null,            // resultado de extractEntities()
+  ent: null,            // entidades extraídas pelo NER do backend
   destino: "ue",
   cultura: "soja",
   embarque: "",
@@ -17,18 +18,35 @@ const state = {
 function saveState() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...state, ent: null })); } catch (e) { /* storage indisponível */ }
 }
-function loadState() {
+async function loadState() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
     if (raw) Object.assign(state, raw);
-    if (state.laudoText) state.ent = extractEntities(state.laudoText);
   } catch (e) { /* ignora */ }
+  if (state.laudoId) {
+    try {
+      const l = await api(`/laudos/${state.laudoId}`);
+      state.laudoText = l.texto;
+      state.ent = l.entidades;
+    } catch (e) { state.laudoId = null; }
+  }
 }
+
+/* Chamada à API NestJS (servida na mesma origem). GET sem body; POST com body. */
+async function api(path, body) {
+  const opts = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  const res = await fetch(`/api${path}`, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error([].concat(data.message || `Erro ${res.status}`).join(" "));
+  return data;
+}
+
+let REF = { destinos: [], culturas: [], biomas: [], praticas: [], padroes: [] }; // GET /api/referencias
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const view = () => $("#view");
-const fmtDate = (d) => d.toLocaleDateString("pt-BR");
-const normTxt = (s) => normChars(s);
+const fmtDate = (iso) => iso.split("-").reverse().join("/");
+const fmtNum = (n) => n.toLocaleString("pt-BR");
 
 /* ------------------------------------------------------------------ Início */
 function renderInicio() {
@@ -54,13 +72,13 @@ function renderInicio() {
     <h2 class="section-title">Pipeline</h2>
     <div class="pipeline">
       <div class="node">Frontend<small>HTML · CSS · JS</small></div><span>→</span>
-      <div class="node strong">Backend FastAPI<small>Sprint 2</small></div><span>→</span>
-      <div class="node">NER · spaCy<small>simulado aqui</small></div><span>→</span>
-      <div class="node">Motor de regras<small>simulado aqui</small></div><span>→</span>
-      <div class="node">Tradução<small>PT ⇄ EN</small></div><span>→</span>
-      <div class="node">PostgreSQL<small>Sprint 1 · 20/10</small></div>
+      <div class="node strong">Backend NestJS<small>API REST · /api</small></div><span>→</span>
+      <div class="node">NER<small>dicionário + regex</small></div><span>→</span>
+      <div class="node">Motor de regras<small>ExportBot · CarbonBot</small></div><span>→</span>
+      <div class="node">Respostas<small>PT ⇄ EN</small></div><span>→</span>
+      <div class="node">PostgreSQL<small>Prisma</small></div>
     </div>
-    <p class="note">Nesta entrega as etapas de NER, regras e tradução rodam no navegador para validar a experiência do usuário. Os dados de regras são ilustrativos.</p>`;
+    <p class="note">NER, motor de regras, calculadora de carbono e chat rodam no backend NestJS; regras e dicionário ficam no PostgreSQL. Os dados de regras e os fatores de carbono são ilustrativos.</p>`;
 }
 
 /* ------------------------------------------------------------------- Laudo */
@@ -82,9 +100,17 @@ function renderLaudo() {
     </div>`;
 
   const txt = $("#txt"), msg = $("#msg");
-  const run = () => {
+  const run = async () => {
     state.laudoText = txt.value.trim();
-    state.ent = state.laudoText ? extractEntities(state.laudoText) : null;
+    state.laudoId = null;
+    state.ent = null;
+    if (state.laudoText) {
+      try {
+        const l = await api("/laudos", { texto: state.laudoText });
+        state.laudoId = l.id;
+        state.ent = l.entidades;
+      } catch (e) { msg.textContent = `Falha ao processar o laudo: ${e.message}`; }
+    }
     saveState();
     renderLaudoResult();
   };
@@ -100,7 +126,7 @@ function renderLaudo() {
       r.readAsText(f);
     } else {
       txt.value = LAUDO_EXEMPLO;
-      msg.textContent = "A leitura de PDF/imagem será feita pelo backend (Sprint 2). Por enquanto usamos o laudo de exemplo.";
+      msg.textContent = "A leitura de PDF/imagem (OCR) ainda não é suportada. Por enquanto usamos o laudo de exemplo.";
       run();
     }
   };
@@ -136,56 +162,28 @@ function renderLaudoResult() {
 }
 
 /* --------------------------------------------------------------- ExportBot */
-function evalExport() {
-  const key = `${state.destino}|${state.cultura}`;
-  const regra = REGRAS_EXPORT[key];
-  const e = state.ent;
-  const items = [];
-
-  items.push(e
-    ? { id: "laudo", label: "Laudo fitossanitário emitido", status: e.laudoNumero ? "ok" : "pendente", note: e.laudoNumero ? `Nº ${e.laudoNumero}` : "Número do laudo não identificado no texto." }
-    : { id: "laudo", label: "Laudo fitossanitário emitido", status: "pendente", note: "Nenhum laudo carregado." });
-
-  items.push(!e
-    ? { id: "cultura", label: `Laudo cobre a cultura (${CULTURAS[state.cultura].nome})`, status: "pendente", note: "Aguardando laudo." }
-    : e.culturas.includes(state.cultura)
-      ? { id: "cultura", label: `Laudo cobre a cultura (${CULTURAS[state.cultura].nome})`, status: "ok", note: "Cultura encontrada no laudo." }
-      : { id: "cultura", label: `Laudo cobre a cultura (${CULTURAS[state.cultura].nome})`, status: "risco", note: "O laudo não menciona esta cultura." });
-
-  let dias = null;
-  if (!e || !e.ultimaInspecao) {
-    items.push({ id: "prazo", label: `Inspeção até ${regra.maxDias} dias antes do embarque`, status: "pendente", note: e ? "Data de inspeção não identificada." : "Aguardando laudo." });
-  } else if (!state.embarque) {
-    items.push({ id: "prazo", label: `Inspeção até ${regra.maxDias} dias antes do embarque`, status: "pendente", note: "Informe a data prevista de embarque." });
-  } else {
-    dias = Math.round((new Date(state.embarque + "T00:00:00") - e.ultimaInspecao) / 86400000);
-    const okPrazo = dias >= 0 && dias <= regra.maxDias;
-    items.push({ id: "prazo", label: `Inspeção até ${regra.maxDias} dias antes do embarque`, status: okPrazo ? "ok" : "risco", note: dias < 0 ? "Embarque anterior à inspeção." : `Inspeção há ${dias} dia(s) do embarque.` });
-  }
-
-  regra.bloqueio.forEach((p) => {
-    if (!e) { items.push({ id: "b-" + p, label: `Ausência de ${p}`, status: "pendente", note: "Aguardando laudo." }); return; }
-    const achou = e.pragas.includes(p) || e.doencas.includes(p);
-    items.push({ id: "b-" + p, label: `Ausência de ${p}`, status: achou ? "risco" : "ok", note: achou ? "Detectado no laudo — tratar e comprovar antes do embarque." : "Não detectado no laudo." });
-  });
-
-  regra.docs.forEach((d) => {
-    const k = `${key}|${d}`;
-    items.push({ id: "doc", doc: d, docKey: k, label: d, status: state.docsOk[k] ? "ok" : "pendente", note: state.docsOk[k] ? "Confirmado pelo produtor." : "Confirmação manual pendente." });
-  });
-
-  return { items, regra, dias };
+/* Contexto enviado ao backend (POST /api/export/avaliar e /api/export/chat). */
+function exportCtx() {
+  const prefix = `${state.destino}|${state.cultura}|`;
+  return {
+    laudoId: state.laudoId || undefined,
+    destino: state.destino,
+    cultura: state.cultura,
+    embarque: state.embarque || undefined,
+    docsConfirmados: Object.keys(state.docsOk).filter((k) => state.docsOk[k] && k.startsWith(prefix)).map((k) => k.slice(prefix.length)),
+  };
 }
 
 function renderExport() {
   const L = I18N[state.lang];
+  const opts = (list, sel) => list.map((v) => `<option value="${escapeHtml(v.id)}" ${v.id === sel ? "selected" : ""}>${escapeHtml(v.nome)}</option>`).join("");
   view().innerHTML = `
     <header class="page-head"><h1>2 · ExportBot</h1><p>Cruza as entidades do laudo com as exigências do destino e responde em linguagem natural.</p></header>
     <div class="grid2 wide-right">
       <section class="card">
         <div class="form-grid">
-          <label class="field">Destino<select id="destino">${Object.entries(DESTINOS).map(([k, v]) => `<option value="${k}" ${k === state.destino ? "selected" : ""}>${v.nome}</option>`).join("")}</select></label>
-          <label class="field">Cultura<select id="cultura">${Object.entries(CULTURAS).map(([k, v]) => `<option value="${k}" ${k === state.cultura ? "selected" : ""}>${v.nome}</option>`).join("")}</select></label>
+          <label class="field">Destino<select id="destino">${opts(REF.destinos, state.destino)}</select></label>
+          <label class="field">Cultura<select id="cultura">${opts(REF.culturas, state.cultura)}</select></label>
           <label class="field">Embarque previsto<input type="date" id="embarque" value="${state.embarque}"></label>
           <label class="field">Idioma da resposta<select id="lang"><option value="pt" ${state.lang === "pt" ? "selected" : ""}>Português</option><option value="en" ${state.lang === "en" ? "selected" : ""}>English</option></select></label>
         </div>
@@ -197,13 +195,20 @@ function renderExport() {
       <section class="card chat" id="chat"></section>
     </div>`;
 
-  const paint = () => {
-    const { items } = evalExport();
+  const docKey = (doc) => `${state.destino}|${state.cultura}|${doc}`;
+  const paint = async () => {
+    let items;
+    try {
+      ({ items } = await api("/export/avaliar", exportCtx()));
+    } catch (e) {
+      $("#checklist").innerHTML = `<li class="alert">${escapeHtml(e.message)}</li>`;
+      return;
+    }
     const ok = items.filter((i) => i.status === "ok").length;
     $("#bar").style.width = `${Math.round((ok / items.length) * 100)}%`;
     $("#checklist").innerHTML = items.map((i) => `
       <li class="item ${i.status}">
-        ${i.docKey ? `<input type="checkbox" data-doc="${escapeHtml(i.docKey)}" ${i.status === "ok" ? "checked" : ""} aria-label="${escapeHtml(i.label)}">` : `<span class="ico"></span>`}
+        ${i.doc ? `<input type="checkbox" data-doc="${escapeHtml(docKey(i.doc))}" ${i.status === "ok" ? "checked" : ""} aria-label="${escapeHtml(i.label)}">` : `<span class="ico"></span>`}
         <div><strong>${escapeHtml(i.label)}</strong><small>${escapeHtml(i.note)}</small></div>
         <span class="status ${i.status}">${I18N[state.lang].st[i.status]}</span>
       </li>`).join("");
@@ -220,81 +225,46 @@ function renderExport() {
   createChat($("#chat"), { botName: "ExportBot", greeting: L.greetExport, chips, respond: exportRespond });
 }
 
-function exportRespond(text) {
-  const L = I18N[state.lang];
-  const t = normTxt(text);
-  if (!state.ent) return L.noLaudo;
-  const { items, regra, dias } = evalExport();
-  const dest = state.lang === "pt" ? DESTINOS[state.destino].nome : DESTINOS[state.destino].nomeEn;
-  const cult = state.lang === "pt" ? CULTURAS[state.cultura].nome : CULTURAS[state.cultura].nomeEn;
-  const by = (s) => items.filter((i) => i.status === s);
-  const li = (arr) => `<ul>${arr.map((i) => `<li>${escapeHtml(i.label)} — <small>${escapeHtml(i.note)}</small></li>`).join("")}</ul>`;
-  const summary = L.summary(by("ok").length, by("pendente").length, by("risco").length, dest, cult);
-
-  if (/pendent|falta|risco|pending|missing|risk/.test(t)) {
-    const bad = [...by("risco"), ...by("pendente")];
-    return `${summary}<br>${bad.length ? `<b>${L.pendHeader}</b>${li(bad)}` : L.nothingPending}`;
-  }
-  if (/prag|doenc|entidad|pest|disease|entit/.test(t)) {
-    const e = state.ent;
-    const j = (a) => a.length ? a.join(", ") : "—";
-    return `<b>${L.pragasHeader}</b><ul><li>Pragas / pests: ${j(e.pragas)}</li><li>Doenças / diseases: ${j(e.doencas)}</li><li>Talhões / plots: ${j(e.talhoes)}</li></ul>`;
-  }
-  if (/document|doc\b|docs/.test(t)) {
-    return `<b>${L.docsHeader}</b>${li(items.filter((i) => i.docKey))}`;
-  }
-  if (/prazo|data|inspec|deadline|date/.test(t)) {
-    if (!state.embarque) return L.noEmbarque;
-    return L.prazoLine(dias, regra.maxDias);
-  }
-  if (/atendid|\bok\b|met\b|tudo|already/.test(t)) {
-    return by("ok").length ? `<b>${L.okHeader}</b>${li(by("ok"))}` : "—";
-  }
-  if (/resumo|summary|status/.test(t)) return summary;
-  if (/ajuda|help|oi|ola|hello|hi\b/.test(t)) return L.help;
-  return L.fallback;
+async function exportRespond(text) {
+  const { resposta } = await api("/export/chat", { ...exportCtx(), mensagem: text, lang: state.lang });
+  return resposta;
 }
 
 /* --------------------------------------------------------------- CarbonBot */
-function evalCarbon() {
+/* Converte o estado do formulário no payload de POST /api/carbono/*. */
+function carbonPayload() {
   const c = state.carbon;
-  const bioma = BIOMAS[c.bioma];
-  const items = [];
-  items.push({ label: "Inscrição ativa no CAR/SICAR", status: c.car === "sim" ? "ok" : "pendente", note: c.car === "sim" ? "Cadastro Ambiental Rural informado." : "A inscrição no CAR é pré-requisito para qualquer projeto." });
-  const deficit = bioma.rl - Number(c.rl || 0);
-  items.push({ label: `Reserva Legal ≥ ${bioma.rl}% (${bioma.nome})`, status: deficit <= 0 ? "ok" : "risco", note: deficit <= 0 ? `Atual: ${c.rl}% — em conformidade.` : `Déficit de ${deficit} p.p.; regularize via PRA antes de certificar.` });
-  items.push({ label: "Sem supressão recente de vegetação nativa", status: c.desmat === "nao" ? "ok" : "risco", note: c.desmat === "nao" ? "Sem desmatamento recente declarado." : "Supressão recente pode inviabilizar o projeto em padrões voluntários." });
-  items.push({ label: "Prática de baixo carbono adotada (Plano ABC+)", status: c.praticas.length ? "ok" : "pendente", note: c.praticas.length ? `${c.praticas.length} prática(s) selecionada(s).` : "Adote ao menos uma prática elegível (ex.: ILPF, plantio direto)." });
-  items.push({ label: "Plano de monitoramento (MRV)", status: c.mrv ? "ok" : "pendente", note: c.mrv ? "Plano de MRV confirmado." : "Defina como emissões/remoções serão medidas e verificadas." });
-  items.push({ label: "Escala mínima recomendada (≥ 30 ha)", status: Number(c.area) >= 30 ? "ok" : "pendente", note: Number(c.area) >= 30 ? `${c.area} ha.` : "Área pequena: considere projeto agrupado com outras propriedades." });
-  const ok = items.filter((i) => i.status === "ok").length;
-  return { items, score: Math.round((ok / items.length) * 100), ok };
+  return {
+    bioma: c.bioma, area: Number(c.area) || 0, rl: Number(c.rl) || 0,
+    car: c.car === "sim", desmatamento: c.desmat === "sim",
+    praticas: c.praticas, mrv: c.mrv, padrao: c.padrao,
+  };
 }
 
 function renderCarbon() {
   const c = state.carbon;
   view().innerHTML = `
-    <header class="page-head"><h1>3 · CarbonBot</h1><p>Avalia a elegibilidade da propriedade a créditos de carbono no mercado voluntário.</p></header>
+    <header class="page-head"><h1>3 · CarbonBot</h1><p>Avalia a elegibilidade da propriedade a créditos de carbono no mercado voluntário e estima o potencial de créditos.</p></header>
     <p class="alert info">A agropecuária está fora do mercado regulado (SBCE, Lei nº 15.042/2024); os créditos do setor seguem pelo <b>mercado voluntário</b> (ex.: Verra VCS, Gold Standard).</p>
     <div class="grid2 wide-right">
       <section class="card">
         <form id="cform">
           <div class="form-grid">
-            <label class="field">Bioma<select name="bioma">${Object.entries(BIOMAS).map(([k, v]) => `<option value="${k}" ${k === c.bioma ? "selected" : ""}>${v.nome}</option>`).join("")}</select></label>
+            <label class="field">Bioma<select name="bioma">${REF.biomas.map((v) => `<option value="${escapeHtml(v.id)}" ${v.id === c.bioma ? "selected" : ""}>${escapeHtml(v.nome)}</option>`).join("")}</select></label>
             <label class="field">Área total (ha)<input type="number" min="0" name="area" value="${c.area}"></label>
             <label class="field">Reserva Legal atual (%)<input type="number" min="0" max="100" name="rl" value="${c.rl}"></label>
             <label class="field">CAR/SICAR ativo<select name="car"><option value="sim" ${c.car === "sim" ? "selected" : ""}>Sim</option><option value="nao" ${c.car === "nao" ? "selected" : ""}>Não</option></select></label>
             <label class="field">Desmatamento recente<select name="desmat"><option value="nao" ${c.desmat === "nao" ? "selected" : ""}>Não</option><option value="sim" ${c.desmat === "sim" ? "selected" : ""}>Sim</option></select></label>
-            <label class="field">Padrão de certificação<select name="padrao">${["Verra VCS", "Gold Standard"].map((p) => `<option ${p === c.padrao ? "selected" : ""}>${p}</option>`).join("")}</select></label>
+            <label class="field">Padrão de certificação<select name="padrao">${REF.padroes.map((p) => `<option ${p === c.padrao ? "selected" : ""}>${escapeHtml(p)}</option>`).join("")}</select></label>
           </div>
           <fieldset><legend>Práticas de baixo carbono adotadas</legend>
-            ${PRATICAS_CARBONO.map((p) => `<label class="check"><input type="checkbox" name="pratica" value="${p.id}" ${c.praticas.includes(p.id) ? "checked" : ""}> ${p.nome}</label>`).join("")}
+            ${REF.praticas.map((p) => `<label class="check"><input type="checkbox" name="pratica" value="${escapeHtml(p.id)}" ${c.praticas.includes(p.id) ? "checked" : ""}> ${escapeHtml(p.nome)}</label>`).join("")}
           </fieldset>
           <label class="check"><input type="checkbox" name="mrv" ${c.mrv ? "checked" : ""}> Possuo plano de monitoramento, relato e verificação (MRV)</label>
           <button class="btn" type="submit">Avaliar elegibilidade</button>
         </form>
         <div id="cresult"></div>
-        <p class="note">Critérios ilustrativos; a base final será curada de CAR/SICAR, Plano ABC+ (MAPA), Verra VCS e Gold Standard.</p>
+        <p class="note">Critérios e fatores de carbono ilustrativos; a base final será curada de CAR/SICAR, Plano ABC+ (MAPA), Verra VCS e Gold Standard.</p>
       </section>
       <section class="card chat" id="chat"></section>
     </div>`;
@@ -306,10 +276,20 @@ function renderCarbon() {
       desmat: f.get("desmat"), padrao: f.get("padrao"), praticas: f.getAll("pratica"), mrv: f.get("mrv") === "on",
     });
   };
-  const paint = () => {
-    const r = evalCarbon();
+  const paint = async () => {
+    let r;
+    try {
+      r = await api("/carbono/avaliar", carbonPayload());
+    } catch (e) {
+      $("#cresult").innerHTML = `<p class="alert">${escapeHtml(e.message)}</p>`;
+      return;
+    }
+    const est = r.estimativa;
     $("#cresult").innerHTML = `
       <div class="score"><div class="ring" style="--p:${r.score}"><span>${r.score}%</span></div><div><strong>${r.ok} de ${r.items.length} critérios atendidos</strong><small>${r.score >= 80 ? "Boa chance de elegibilidade" : r.score >= 50 ? "Elegibilidade parcial — há ajustes" : "Elegibilidade baixa no momento"}</small></div></div>
+      <p class="alert info">${est.praticaBase
+        ? `Estimativa ilustrativa: <b>~${fmtNum(est.creditosAno)} crédito(s)/ano</b> — ${fmtNum(est.areaProdutivaHa)} ha produtivos × ${fmtNum(est.praticaBase.fatorTco2eHaAno)} tCO2e/ha/ano (${escapeHtml(est.praticaBase.nome)}) = ${fmtNum(est.potencialTco2eAno)} tCO2e/ano, menos ${est.bufferPct}% de buffer.`
+        : "Selecione ao menos uma prática de baixo carbono para estimar os créditos."}</p>
       <ul class="checklist">${r.items.map((i) => `<li class="item ${i.status}"><span class="ico"></span><div><strong>${escapeHtml(i.label)}</strong><small>${escapeHtml(i.note)}</small></div><span class="status ${i.status}">${I18N.pt.st[i.status]}</span></li>`).join("")}</ul>`;
   };
   $("#cform").addEventListener("submit", (ev) => { ev.preventDefault(); readForm(); state.carbon.avaliado = true; saveState(); paint(); chat.ask("Resumo"); });
@@ -318,32 +298,15 @@ function renderCarbon() {
 
   const chat = createChat($("#chat"), {
     botName: "CarbonBot",
-    greeting: "Olá! Sou o CarbonBot. Preencha os dados da propriedade, clique em <b>Avaliar elegibilidade</b> e pergunte, por exemplo: “o que falta para me qualificar?”",
-    chips: ["O que falta?", "Reserva Legal", "Práticas elegíveis", "Qual padrão escolher?", "Mercado regulado?"],
+    greeting: "Olá! Sou o CarbonBot. Preencha os dados da propriedade, clique em <b>Avaliar elegibilidade</b> e pergunte, por exemplo: “o que falta para me qualificar?” ou “quantos créditos posso gerar?”",
+    chips: ["O que falta?", "Quantos créditos?", "Reserva Legal", "Práticas elegíveis", "Qual padrão escolher?", "Mercado regulado?"],
     respond: carbonRespond,
   });
 }
 
-function carbonRespond(text) {
-  const t = normTxt(text);
-  const r = evalCarbon();
-  const c = state.carbon;
-  const li = (arr) => `<ul>${arr.map((i) => `<li>${escapeHtml(i.label)} — <small>${escapeHtml(i.note)}</small></li>`).join("")}</ul>`;
-  const bad = r.items.filter((i) => i.status !== "ok");
-  if (/regulad|sbce|obrigat/.test(t)) return "O SBCE (Lei nº 15.042/2024) cria o mercado regulado brasileiro, mas <b>exclui a agropecuária</b> das obrigações. Para o produtor rural, o caminho é o <b>mercado voluntário</b>, com certificação por padrões como Verra VCS ou Gold Standard.";
-  if (/padrao|verra|gold|certific/.test(t)) return `Você selecionou <b>${c.padrao}</b>. O <b>Verra VCS</b> é o mais usado em projetos agrícolas e florestais; o <b>Gold Standard</b> dá ênfase a cobenefícios sociais e ambientais. A escolha depende do tipo de projeto e do comprador dos créditos.`;
-  if (/reserva|legal|\brl\b/.test(t)) { const i = r.items[1]; return `<b>${escapeHtml(i.label)}</b>: ${escapeHtml(i.note)}`; }
-  if (/pratica|abc|ilpf|manejo/.test(t)) return `Práticas do Plano ABC+ consideradas: <ul>${PRATICAS_CARBONO.map((p) => `<li>${p.nome}${c.praticas.includes(p.id) ? " ✓" : ""}</li>`).join("")}</ul>`;
-  if (/falta|pendent|qualific|risco|elegi/.test(t)) {
-    if (!c.avaliado) return "Clique em <b>Avaliar elegibilidade</b> para eu analisar os dados da propriedade.";
-    return bad.length ? `Para se qualificar, ajuste:${li(bad)}` : "Todos os critérios avaliados estão atendidos. 🎉 O próximo passo é estruturar o projeto junto a uma certificadora.";
-  }
-  if (/resumo|summary|status|avali/.test(t)) {
-    if (!c.avaliado) return "Clique em <b>Avaliar elegibilidade</b> para gerar o resumo.";
-    return `<b>${r.ok}</b> de <b>${r.items.length}</b> critérios atendidos (<b>${r.score}%</b>) para o padrão <b>${c.padrao}</b>.${bad.length ? ` Pendências: ${bad.length}.` : ""}`;
-  }
-  if (/ajuda|help|oi|ola/.test(t)) return "Posso falar sobre: <b>o que falta</b>, <b>Reserva Legal</b>, <b>práticas elegíveis</b>, <b>padrão de certificação</b> e <b>mercado regulado</b>.";
-  return "Não entendi bem. Tente: “o que falta?”, “Reserva Legal”, “práticas elegíveis” ou “mercado regulado?”.";
+async function carbonRespond(text) {
+  const { resposta } = await api("/carbono/chat", { mensagem: text, propriedade: carbonPayload(), avaliado: state.carbon.avaliado });
+  return resposta;
 }
 
 /* ------------------------------------------------------------------- Sobre */
@@ -364,9 +327,9 @@ function renderSobre() {
     <div class="grid2">
       <section class="card"><h3>Equipe</h3><ul class="plain"><li>Vitor Hugo Rodrigues dos Santos</li><li>Pedro Henrique Araujo</li></ul><p class="muted">Prof. Braz Izaias da Silva Junior</p>
         <h3>Motivação</h3><p>Exportar e acessar o mercado de carbono exigem checagens manuais, lentas e sujeitas a erro. O AgroReady automatiza as duas com o mesmo pipeline de PLN.</p>
-        <h3>Tecnologias</h3><p><span class="pill">HTML5</span><span class="pill">CSS3</span><span class="pill">JavaScript</span><span class="pill">FastAPI (Sprint 2)</span><span class="pill">spaCy (Sprint 2)</span><span class="pill">PostgreSQL (Sprint 1)</span></p></section>
+        <h3>Tecnologias</h3><p><span class="pill">HTML5</span><span class="pill">CSS3</span><span class="pill">JavaScript</span><span class="pill">NestJS</span><span class="pill">Prisma</span><span class="pill">PostgreSQL</span></p></section>
       <section class="card"><h3>Roadmap das sprints</h3>
-        <ol class="timeline"><li class="done"><b>Sprint Zero · 13/10</b><small>Front-end do protótipo (esta entrega)</small></li><li><b>Sprint Um · 20/10</b><small>Diagrama entidade-relacionamento e banco de dados com CRUD</small></li><li><b>Sprint Dois</b><small>Backend FastAPI + NER (spaCy) + motor de regras reais</small></li></ol></section>
+        <ol class="timeline"><li class="done"><b>Sprint Zero · 13/10</b><small>Front-end do protótipo (esta entrega)</small></li><li><b>Sprint Um · 20/10</b><small>Diagrama entidade-relacionamento e banco de dados com CRUD</small></li><li><b>Sprint Dois</b><small>Backend NestJS + NER + motor de regras e calculadora de carbono</small></li></ol></section>
     </div>
     <h2 class="section-title">Cronograma geral (17 semanas)</h2>
     <div class="table-wrap"><table><thead><tr><th>Semana</th><th>Fase</th><th>O que será feito</th></tr></thead><tbody>${cron.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</tbody></table></div>`;
@@ -387,5 +350,13 @@ function route() {
 
 $("#menuBtn").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
 window.addEventListener("hashchange", route);
-loadState();
-route();
+(async () => {
+  try {
+    REF = await api("/referencias");
+  } catch (e) {
+    view().innerHTML = `<p class="alert">Backend indisponível (${escapeHtml(e.message)}). Rode <code>npm run start:dev</code> em <code>backend/</code> e acesse http://localhost:3000.</p>`;
+    return;
+  }
+  await loadState();
+  route();
+})();
