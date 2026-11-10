@@ -19,13 +19,13 @@ const prop = (over: Partial<Propriedade> = {}): Propriedade => ({
 
 describe('avaliarCarbono', () => {
   it('100% quando todos os critérios são atendidos', () => {
-    expect(avaliarCarbono(prop(), CERRADO, PRATICAS).score).toBe(100);
+    expect(avaliarCarbono(prop(), CERRADO, PRATICAS).resumo).toMatchObject({ score: 100, situacao: 'ok' });
   });
 
   it('déficit de Reserva Legal vira risco', () => {
     const r = avaliarCarbono(prop({ rl: 30 }), CERRADO, PRATICAS);
     expect(r.items.find((i) => i.id === 'rl')).toMatchObject({ status: 'risco', note: expect.stringContaining('5 p.p.') });
-    expect(r.score).toBe(83);
+    expect(r.resumo).toMatchObject({ score: 83, situacao: 'risco' });
   });
 });
 
@@ -46,9 +46,24 @@ describe('estimarCreditos', () => {
 });
 
 describe('responderCarbono', () => {
+  const perguntar = (msg: string, p = prop(), avaliado = true) =>
+    responderCarbono(msg, p, avaliado, PRATICAS, avaliarCarbono(p, CERRADO, PRATICAS));
+
   it('responde a estimativa só depois de avaliar', () => {
-    const r = avaliarCarbono(prop(), CERRADO, PRATICAS);
-    expect(responderCarbono('quantos créditos?', prop(), false, PRATICAS, r)).toContain('Avaliar elegibilidade');
-    expect(responderCarbono('quantos créditos?', prop(), true, PRATICAS, r)).toContain('~112 crédito(s)/ano');
+    expect(perguntar('quantos créditos?', prop(), false).texto).toContain('Avaliar elegibilidade');
+    expect(perguntar('quantos créditos?').texto).toContain('~112 crédito(s)/ano');
+  });
+
+  it('entende variações e lista o que falta', () => {
+    const r = perguntar('o que ainda está faltando pra eu me qualificar?', prop({ rl: 30, mrv: false }));
+    expect(r.analise.intencao).toBe('faltas');
+    expect(r.itens!.map((i) => i.id)).toEqual(['rl', 'mrv']); // risco primeiro
+    expect(perguntar('sou obrigado a participar do mercado regulado?').texto).toContain('exclui a agropecuária');
+    expect(perguntar('qual é a reserva legal mínima?').texto).toContain('Reserva Legal ≥ 35%');
+    expect(perguntar('quais práticas são elegíveis?').itens).toHaveLength(2);
+  });
+
+  it('não inventa preço de crédito', () => {
+    expect(perguntar('quanto vale um crédito de carbono?').texto).toContain('Não estimo valores');
   });
 });

@@ -9,12 +9,3 @@ export function normChars(text: string): string {
   }
   return out;
 }
-
-export function escapeHtml(s: string): string {
-  const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-  return s.replace(/[&<>"']/g, (c) => map[c]);
-}
-
-export function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}

@@ -14,7 +14,8 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('AgroReady API')
     .setDescription('ExportBot + CarbonBot — NER de laudos, motor de regras e calculadora de carbono (dados ilustrativos).')
-    .setVersion('0.1.0')
+    .setVersion('1.0.0')
+    .addBearerAuth() // token de POST /api/auth/entrar
     .build();
   SwaggerModule.setup('api/docs', app, () => SwaggerModule.createDocument(app, config));
 

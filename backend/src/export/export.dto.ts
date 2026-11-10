@@ -1,5 +1,6 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   IsArray,
   IsIn,
   IsInt,
@@ -40,8 +41,15 @@ export class AvaliarExportacaoDto {
   /** Documentos que o produtor já confirmou (texto exato do documento na regra). */
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   docsConfirmados?: string[];
+
+  /** Idioma da checklist e das respostas. */
+  @ApiPropertyOptional({ enum: ['pt', 'en'], default: 'pt' })
+  @IsOptional()
+  @IsIn(['pt', 'en'])
+  lang?: Lang;
 }
 
 export class ChatExportacaoDto extends AvaliarExportacaoDto {
@@ -49,11 +57,6 @@ export class ChatExportacaoDto extends AvaliarExportacaoDto {
   @IsNotEmpty()
   @MaxLength(500)
   mensagem: string;
-
-  @ApiPropertyOptional({ enum: ['pt', 'en'], default: 'pt' })
-  @IsOptional()
-  @IsIn(['pt', 'en'])
-  lang?: Lang;
 }
 
 export class CreateRegraDto {
@@ -71,14 +74,20 @@ export class CreateRegraDto {
   @Max(365)
   maxDias: number;
 
-  /** Pragas/doenças que exigem tratamento antes do embarque. */
+  /** Pragas/doenças (termos do dicionário) que exigem tratamento antes do embarque. */
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(80, { each: true })
   bloqueios: string[];
 
   /** Documentos que o produtor confirma manualmente. */
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(160, { each: true })
   docs: string[];
 }
 
