@@ -44,7 +44,7 @@ O `vercel.json` da raiz publica os dois lados no mesmo projeto (Vercel Services)
 2. **Storage → criar um Postgres** (Neon ou Prisma Postgres) ligado ao projeto: isso cria `DATABASE_URL`.
 3. **Settings → Environment Variables**: `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 4. Para acesso público: **Settings → Deployment Protection** só nos previews (ou desligada).
-5. Faça o deploy (push na `master`). O script `vercel-build` do backend aplica as migrações e roda o seed.
+5. Faça o deploy (push na `master`). No build da Vercel, o `prebuild` do backend (`prisma/vercel-db.cjs`) aplica as migrações e roda o seed.
 
 Se as tabelas não forem criadas no build, rode uma vez na sua máquina, com `DATABASE_URL` apontando para o banco da nuvem:
 `npx prisma migrate deploy && npm run db:seed` (em `backend/`).
