@@ -32,10 +32,10 @@ export class LaudosController {
     return this.laudos.create(u.sub, dto.texto, { titulo: dto.titulo });
   }
 
-  /** Envia um .txt ou PDF com texto selecionável (campo "arquivo", até 5 MB). */
+  /** Envia um .txt ou PDF com texto selecionável (campo "arquivo", até 4 MB — a Vercel recusa corpos acima de 4,5 MB). */
   @Post('arquivo')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('arquivo', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('arquivo', { limits: { fileSize: 4 * 1024 * 1024 } }))
   async upload(@UsuarioAtual() u: UsuarioToken, @UploadedFile() arquivo?: ArquivoEnviado) {
     if (!arquivo) throw new BadRequestException('Envie o arquivo no campo "arquivo".');
     const { texto, origem } = await extrairTexto(arquivo);

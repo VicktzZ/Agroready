@@ -8,7 +8,7 @@ import type { LaudoExemplo } from '../exemplos';
 import type { Laudo } from '../types';
 import { Aviso, Button, Card, cx, Field, PageHeader, useToast } from '../ui';
 
-const LIMITE_ARQUIVO = 5 * 1024 * 1024;
+const LIMITE_ARQUIVO = 4 * 1024 * 1024;
 
 export function LaudoNovo() {
   const navegar = useNavigate();
@@ -35,7 +35,7 @@ export function LaudoNovo() {
     if (!f) return;
     setErro(null);
     if (!/\.(txt|pdf)$/i.test(f.name)) return setErro('Formato não suportado. Envie um arquivo .txt ou um PDF com texto selecionável.');
-    if (f.size > LIMITE_ARQUIVO) return setErro('Arquivo maior que 5 MB.');
+    if (f.size > LIMITE_ARQUIVO) return setErro('Arquivo maior que 4 MB.');
     setArquivo(f);
   }
 
@@ -108,7 +108,7 @@ export function LaudoNovo() {
       </Card>
 
       <form className="cols-2" onSubmit={analisar}>
-        <Card titulo="Arquivo" sub=".txt ou PDF com texto selecionável, até 5 MB.">
+        <Card titulo="Arquivo" sub=".txt ou PDF com texto selecionável, até 4 MB.">
           {arquivo ? (
             <div className="check">
               <FileText size={20} />

@@ -37,6 +37,20 @@ a aplicação em http://localhost:3000.
 - Swagger: http://localhost:3000/api/docs
 - Testes unitários (PLN, NER, motores dos bots): `npm test` em `backend/`
 
+## Publicar na Vercel
+O `vercel.json` da raiz publica os dois lados no mesmo projeto (Vercel Services): `/api/*` vai para `backend/`, o resto para `frontend/`.
+
+1. No projeto da Vercel: **Settings → Build and Deployment → Framework Preset = Services**, Root Directory vazio.
+2. **Storage → criar um Postgres** (Neon ou Prisma Postgres) ligado ao projeto: isso cria `DATABASE_URL`.
+3. **Settings → Environment Variables**: `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+4. Para acesso público: **Settings → Deployment Protection** só nos previews (ou desligada).
+5. Faça o deploy (push na `master`). O script `vercel-build` do backend aplica as migrações e roda o seed.
+
+Se as tabelas não forem criadas no build, rode uma vez na sua máquina, com `DATABASE_URL` apontando para o banco da nuvem:
+`npx prisma migrate deploy && npm run db:seed` (em `backend/`).
+
+As rotas do front usam `#` (ex.: `/#/laudos`) para funcionar em hospedagem estática sem configuração extra.
+
 ## Contas
 - **Administrador**: criado pelo seed com `ADMIN_EMAIL` / `ADMIN_PASSWORD` do `backend/.env`.
   Gerencia usuários (criar, promover, redefinir senha, excluir), regras, dicionário do NER e catálogos.
