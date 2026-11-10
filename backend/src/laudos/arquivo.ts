@@ -1,5 +1,12 @@
 import { UnprocessableEntityException, UnsupportedMediaTypeException } from '@nestjs/common';
-import { PDFParse } from 'pdf-parse';
+
+/* pdfjs (dentro do pdf-parse) exige DOMMatrix, que vem do binário nativo @napi-rs/canvas.
+   - `pdf-parse/worker` primeiro: faz require estático do canvas, então o bundler da Vercel o inclui.
+   - Carregado sob demanda: se ainda assim faltar, só o envio de PDF falha, não a API inteira. */
+async function carregarPdfParse() {
+  require('pdf-parse/worker');
+  return (await import('pdf-parse')).PDFParse;
+}
 
 export interface ArquivoEnviado {
   buffer: Buffer;
@@ -17,6 +24,12 @@ export async function extrairTexto(arquivo: ArquivoEnviado): Promise<{ texto: st
   const { buffer } = arquivo;
 
   if (buffer.subarray(0, 5).toString('latin1') === '%PDF-') {
+    let PDFParse: Awaited<ReturnType<typeof carregarPdfParse>>;
+    try {
+      PDFParse = await carregarPdfParse();
+    } catch {
+      throw new UnprocessableEntityException('Leitura de PDF indisponível no servidor. Cole o texto do laudo ou envie um .txt.');
+    }
     const parser = new PDFParse({ data: new Uint8Array(buffer) });
     let texto: string;
     try {
