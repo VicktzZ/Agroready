@@ -73,7 +73,13 @@ export class ExportService {
       };
     }
     const ctx = await this.contexto(usuarioId, { ...dto, destino: destino.id, cultura: cultura.id });
-    const resposta = responderExportacao(c.resto, lang, ctx, { citados, trocouContexto: !!(d.achado || c.achado) });
+    // mesma cultura em todos os destinos, para "compare os destinos"
+    const regrasDaCultura = await this.prisma.regraExportacao.findMany({ where: { culturaId: cultura.id }, include: NOMES });
+    const comparativo = regrasDaCultura.map((rg) => ({
+      destino: lang === 'pt' ? rg.destino.nome : rg.destino.nomeEn,
+      resumo: avaliarExportacao({ ...ctx, regra: rg, destino: rg.destino }, lang).resumo,
+    }));
+    const resposta = responderExportacao(c.resto, lang, ctx, { citados, trocouContexto: !!(d.achado || c.achado), comparativo });
     return { ...resposta, contexto };
   }
 

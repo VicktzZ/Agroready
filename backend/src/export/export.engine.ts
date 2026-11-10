@@ -1,4 +1,4 @@
-import { AnaliseChat, ItemChecklist, RespostaChat, resumir, Status } from '../common/checklist';
+import { AnaliseChat, ItemChecklist, RespostaChat, Resumo, resumir, Status } from '../common/checklist';
 import { normChars } from '../common/texto';
 import type { ResultadoNer } from '../ner/ner';
 import { criarClassificador, radical, tokenizar } from '../pln/pln';
@@ -30,6 +30,9 @@ export interface ContextoExportacao {
 
 const DIA_MS = 86_400_000;
 const nomeDe = (n: Nomeado, lang: Lang) => (lang === 'pt' ? n.nome : n.nomeEn);
+/** "2026-08-14" → "14/08/2026" (PT) ou "2026-08-14" (EN). */
+const fmtData = (iso: string, lang: Lang) => (lang === 'pt' ? iso.split('-').reverse().join('/') : iso);
+const somarDias = (iso: string, dias: number) => new Date(Date.parse(iso) + dias * DIA_MS).toISOString().slice(0, 10);
 const igual = (a: string, b: string) => normChars(a) === normChars(b);
 
 /** Parte do laudo que interessa à cultura: os talhões dela, se o laudo os separa; senão o laudo inteiro. */
@@ -112,7 +115,8 @@ export function extrairSlot<T extends Nomeado>(mensagem: string, opcoes: T[]): {
 
 type IntencaoExport =
   | 'pendencias' | 'entidades' | 'documentos' | 'prazo' | 'atendido' | 'resumo' | 'regra'
-  | 'saudacao' | 'ajuda' | 'agradecimento';
+  | 'saudacao' | 'ajuda' | 'agradecimento' | 'despedida'
+  | 'embarque' | 'inspecao' | 'talhoes' | 'ausentes' | 'laudo' | 'proximo' | 'comparar' | 'tratamento' | 'aviso';
 
 // Exemplos em PT e EN: o mesmo classificador atende os dois idiomas.
 const classificar = criarClassificador<IntencaoExport>([
@@ -128,8 +132,8 @@ const classificar = criarClassificador<IntencaoExport>([
     id: 'entidades',
     exemplos: [
       'quais pragas foram encontradas', 'quais doenças', 'pragas e doenças do laudo', 'o que o laudo encontrou',
-      'entidades extraídas', 'quais talhões', 'which pests', 'which diseases were found', 'what did the report find',
-      'pests and diseases', 'which plots',
+      'entidades extraídas', 'which pests', 'which diseases were found', 'what did the report find',
+      'pests and diseases',
     ],
   },
   {
@@ -142,8 +146,8 @@ const classificar = criarClassificador<IntencaoExport>([
   {
     id: 'prazo',
     exemplos: [
-      'prazo da inspeção', 'a inspeção está no prazo', 'quando foi a inspeção', 'validade do laudo', 'o laudo está vencido',
-      'data de embarque', 'quantos dias', 'inspection deadline', 'is the inspection still valid', 'shipment date', 'how many days',
+      'prazo da inspeção', 'a inspeção está no prazo', 'validade do laudo', 'o laudo está vencido',
+      'quantos dias', 'inspection deadline', 'is the inspection still valid', 'how many days',
     ],
   },
   {
@@ -167,7 +171,71 @@ const classificar = criarClassificador<IntencaoExport>([
       'what are the requirements', 'what does the destination require', 'export rules',
     ],
   },
+  {
+    id: 'embarque',
+    exemplos: [
+      'até quando posso embarcar', 'data limite de embarque', 'qual a data limite para embarcar', 'posso embarcar até que dia',
+      'latest shipment date', 'until when can i ship', 'shipping deadline', 'last day to ship',
+    ],
+  },
+  {
+    id: 'inspecao',
+    exemplos: [
+      'quando foi a inspeção', 'data da última inspeção', 'última inspeção', 'quando o laudo foi inspecionado',
+      'when was the inspection', 'latest inspection date', 'last inspection',
+    ],
+  },
+  {
+    id: 'talhoes',
+    exemplos: [
+      'detalhe por talhão', 'como estão os talhões', 'quais talhões têm problema', 'resumo dos talhões', 'talhão por talhão',
+      'quais talhões', 'plot details', 'how are the plots', 'which plots have issues', 'which plots',
+    ],
+  },
+  {
+    id: 'ausentes',
+    exemplos: [
+      'quais pragas estão ausentes', 'o que não foi encontrado', 'pragas descartadas', 'o que foi negado no laudo',
+      'which pests are absent', 'what was not found', 'ruled out',
+    ],
+  },
+  {
+    id: 'laudo',
+    exemplos: [
+      'informações do laudo', 'dados do laudo', 'qual a propriedade do laudo', 'de onde é o laudo', 'número do laudo',
+      'report details', 'which farm', 'report number',
+    ],
+  },
+  {
+    id: 'proximo',
+    exemplos: [
+      'qual o próximo passo', 'o que faço primeiro', 'por onde começo', 'o que devo resolver primeiro', 'qual a prioridade',
+      'what should i do next', 'what is the next step', 'what is the priority',
+    ],
+  },
+  {
+    id: 'comparar',
+    exemplos: [
+      'qual destino é mais fácil', 'posso exportar para outro país', 'compare os destinos', 'qual país é melhor para exportar',
+      'em qual destino estou mais pronto', 'which destination is easiest', 'compare destinations', 'can i export elsewhere', 'best destination',
+    ],
+  },
+  {
+    id: 'tratamento',
+    exemplos: [
+      'o que fazer se encontrei praga', 'como tratar a praga detectada', 'o que fazer com o bloqueio', 'como regularizar o laudo',
+      'what to do about the pest', 'how to fix the blocking issue', 'how to treat the disease',
+    ],
+  },
+  {
+    id: 'aviso',
+    exemplos: [
+      'isso vale oficialmente', 'as regras são reais', 'essas informações são oficiais', 'posso confiar nessas regras',
+      'are these rules official', 'is this real data', 'can i trust this',
+    ],
+  },
   { id: 'saudacao', exemplos: ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'hello', 'hi', 'good morning'] },
+  { id: 'despedida', exemplos: ['tchau', 'até logo', 'adeus', 'encerrar conversa', 'bye', 'goodbye', 'see you'] },
   {
     id: 'ajuda',
     exemplos: ['ajuda', 'o que você sabe fazer', 'como funciona', 'como você pode me ajudar', 'help', 'what can you do', 'how does this work'],
@@ -180,6 +248,8 @@ export interface OpcoesPergunta {
   citados?: string[];
   /** A pergunta citou outro destino/cultura ("e para a China?"). */
   trocouContexto?: boolean;
+  /** Situação da mesma cultura em cada destino cadastrado (para "compare os destinos"). */
+  comparativo?: { destino: string; resumo: Resumo }[];
 }
 
 /** Chat do ExportBot: intenção por similaridade TF-IDF (PT/EN) + resposta montada a partir da checklist. */
@@ -187,7 +257,7 @@ export function responderExportacao(
   mensagem: string,
   lang: Lang,
   ctx: ContextoExportacao,
-  { citados = [], trocouContexto = false }: OpcoesPergunta = {},
+  { citados = [], trocouContexto = false, comparativo = [] }: OpcoesPergunta = {},
 ): RespostaChat & { analise: AnaliseChat } {
   const L = T[lang].chat;
   const c = classificar(mensagem);
@@ -211,6 +281,10 @@ export function responderExportacao(
       return r(L.ajuda);
     case 'agradecimento':
       return r(L.agradecimento);
+    case 'despedida':
+      return r(L.despedida);
+    case 'aviso':
+      return r(L.aviso);
     case 'regra':
       return r(
         L.regra(cult, dest, ctx.regra.maxDias) +
@@ -258,6 +332,65 @@ export function responderExportacao(
       if (dias === null) return r(L.semInspecao);
       if (dias < 0) return r(T[lang].item.embarqueAntes);
       return r(L.prazo(dias, ctx.regra.maxDias) + (dias <= ctx.regra.maxDias ? L.prazoOk : L.prazoVencido));
+    case 'inspecao': {
+      const insp = recorte(e, ctx.cultura).inspecao;
+      return r(insp ? L.inspecaoData(cult, fmtData(insp, lang)) : L.semInspecao);
+    }
+    case 'embarque': {
+      const insp = recorte(e, ctx.cultura).inspecao;
+      if (!insp) return r(L.semInspecao);
+      const limite = somarDias(insp, ctx.regra.maxDias);
+      let texto = L.embarqueLimite(fmtData(insp, lang), fmtData(limite, lang), ctx.regra.maxDias);
+      if (ctx.embarque) {
+        const dentro = ctx.embarque >= insp && ctx.embarque <= limite;
+        texto += (dentro ? L.embarqueDentro : L.embarqueFora)(fmtData(ctx.embarque, lang));
+      }
+      return r(texto);
+    }
+    case 'talhoes': {
+      const detalhe = e.talhoesDetalhe ?? [];
+      if (!detalhe.length) return r(L.semTalhoes);
+      const itens = detalhe.map((t): ItemChecklist => {
+        const achados = [...t.pragas, ...t.doencas];
+        const daCultura = !!t.cultura && (igual(t.cultura, ctx.cultura.id) || igual(t.cultura, ctx.cultura.nome));
+        const bloqueia = daCultura && achados.some((a) => ctx.regra.bloqueios.some((b) => igual(a, b)));
+        const area = t.areaHa !== null && t.areaHa !== undefined ? `, ${t.areaHa} ha` : '';
+        return {
+          id: t.talhao,
+          label: `${t.talhao}${t.cultura ? ` — ${t.cultura}` : ''}${area}`,
+          status: bloqueia ? 'risco' : achados.length ? 'pendente' : 'ok',
+          note: achados.length ? achados.join(', ') : L.talhaoLimpo,
+        };
+      });
+      return r(L.talhoesTitulo, itens);
+    }
+    case 'ausentes': {
+      const n = e.negadas ?? [];
+      return r(n.length ? L.ausentes(n.join(', ')) : L.semAusentes);
+    }
+    case 'laudo':
+      return r(
+        L.laudoInfo(e.propriedade ?? '—', e.local ?? '—', e.laudoNumero ?? '—', e.ultimaInspecao ? fmtData(e.ultimaInspecao, lang) : '—', e.items.length),
+      );
+    case 'proximo': {
+      const fila = items.filter((i) => i.status !== 'ok').sort((a, b) => Number(b.status === 'risco') - Number(a.status === 'risco'));
+      return fila.length ? r(L.proximo(fila[0].label, fila[0].note, fila.length - 1)) : r(L.proximoNada);
+    }
+    case 'tratamento': {
+      const bloqueios = items.filter((i) => i.id.startsWith('b-') && i.status === 'risco');
+      return bloqueios.length ? r(`${L.tratamento} ${L.tratamentoLista}`, bloqueios) : r(`${L.tratamento}${L.tratamentoNenhum}`);
+    }
+    case 'comparar': {
+      const lista = [...comparativo].sort((a, b) => b.resumo.score - a.resumo.score || a.resumo.risco - b.resumo.risco);
+      if (!lista.length) return r(L.semOutros);
+      const itens = lista.map((x): ItemChecklist => ({
+        id: x.destino,
+        label: x.destino,
+        status: x.resumo.situacao,
+        note: L.compararNota(x.resumo.score, x.resumo.risco, x.resumo.pendente),
+      }));
+      return r(`${L.comparar(cult)}${L.compararMelhor(lista[0].destino)}`, itens);
+    }
     default:
       return r(`${resumoTxt} ${L.situacao[resumo.situacao]}`);
   }

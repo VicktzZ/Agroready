@@ -114,6 +114,59 @@ describe('responderExportacao', () => {
     expect(responderExportacao('requirements for', 'en', ctx(), { trocouContexto: true }).analise.intencao).toBe('regra');
   });
 
+  describe('perguntas ampliadas', () => {
+    const resposta = (msg: string, lang: 'pt' | 'en' = 'pt', extra = {}) => responderExportacao(msg, lang, ctx(), extra);
+
+    it('data limite de embarque e última inspeção (da cultura, não do laudo todo)', () => {
+      const a = resposta('até quando posso embarcar?');
+      expect(a.analise.intencao).toBe('embarque');
+      expect(a.texto).toContain('13/09/2026'); // inspeção da soja (14/08) + 30 dias
+      expect(a.texto).toContain('dentro do limite'); // embarque previsto 10/09
+      expect(resposta('quando foi a inspeção?').texto).toContain('14/08/2026');
+      expect(resposta('until when can I ship?', 'en').texto).toContain('2026-09-13');
+    });
+
+    it('detalhe por talhão marca o que bloqueia a cultura avaliada', () => {
+      const a = resposta('como estão os talhões?');
+      expect(a.analise.intencao).toBe('talhoes');
+      expect(a.itens!.map((i) => [i.id, i.status])).toEqual([['talhão 03', 'risco'], ['talhão 07', 'pendente']]);
+    });
+
+    it('próximo passo começa pelo que está em risco', () => {
+      const a = resposta('qual o próximo passo?');
+      expect(a.analise.intencao).toBe('proximo');
+      expect(a.texto).toContain('percevejo-marrom');
+    });
+
+    it('compara destinos e aponta o mais próximo de pronto', () => {
+      const comparativo = [
+        { destino: 'China', resumo: { ok: 2, pendente: 2, risco: 1, score: 40, situacao: 'risco' as const } },
+        { destino: 'União Europeia', resumo: { ok: 4, pendente: 1, risco: 0, score: 80, situacao: 'pendente' as const } },
+      ];
+      const a = resposta('compare os destinos', 'pt', { comparativo });
+      expect(a.analise.intencao).toBe('comparar');
+      expect(a.itens!.map((i) => i.label)).toEqual(['União Europeia', 'China']);
+      expect(a.texto).toContain('União Europeia');
+    });
+
+    it('tratamento, aviso de dados ilustrativos e despedida', () => {
+      expect(resposta('o que fazer se encontrei praga?').analise.intencao).toBe('tratamento');
+      expect(resposta('essas regras são oficiais?').texto).toContain('ilustrativos');
+      expect(resposta('tchau').analise.intencao).toBe('despedida');
+    });
+
+    it('pragas ausentes e dados do laudo', () => {
+      expect(responderExportacao('quais pragas estão ausentes?', 'pt', ctx({ ent: { ...ent, negadas: ['mosca-branca'] } })).texto).toContain('mosca-branca');
+      expect(resposta('qual o número do laudo?').texto).toContain('2026/0842');
+    });
+
+    it('as perguntas antigas continuam no lugar', () => {
+      expect(resposta('a inspeção ainda está no prazo?').analise.intencao).toBe('prazo');
+      expect(resposta('o que ainda falta resolver?').analise.intencao).toBe('pendencias');
+      expect(resposta('quais pragas foram encontradas?').analise.intencao).toBe('entidades');
+    });
+  });
+
   it('pergunta só com o destino vira resumo', () => {
     expect(responderExportacao('e para a', 'pt', ctx(), { trocouContexto: true }).analise.intencao).toBe('resumo');
   });

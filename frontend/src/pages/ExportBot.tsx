@@ -27,12 +27,32 @@ const preferencias = (): Partial<Form> => {
 const TEXTOS = {
   pt: {
     saudacao: 'Olá! Sou o **ExportBot**. Escolha o laudo, o destino e a cultura: eu cruzo tudo com as exigências e respondo suas dúvidas.',
-    sugestoes: (destino: string) => ['O que está pendente?', 'Quais pragas?', 'Documentos', 'Prazo da inspeção', `Exigências para ${destino}`],
+    sugestoes: (destino: string) => [
+      'O que está pendente?',
+      'Qual o próximo passo?',
+      'Até quando posso embarcar?',
+      'Quais pragas?',
+      'Como estão os talhões?',
+      'Documentos',
+      `Exigências para ${destino}`,
+      'Compare os destinos',
+      'Como tratar um bloqueio?',
+    ],
     unidade: 'exigências atendidas',
   },
   en: {
     saudacao: 'Hi! I am **ExportBot**. Pick the report, destination and crop: I cross-check everything with the requirements and answer your questions.',
-    sugestoes: (destino: string) => ['What is pending?', 'Which pests?', 'Documents', 'Inspection deadline', `Requirements for ${destino}`],
+    sugestoes: (destino: string) => [
+      'What is pending?',
+      'What is the next step?',
+      'Until when can I ship?',
+      'Which pests?',
+      'How are the plots?',
+      'Documents',
+      `Requirements for ${destino}`,
+      'Compare destinations',
+      'How to treat a blocking issue?',
+    ],
     unidade: 'requirements met',
   },
 };
