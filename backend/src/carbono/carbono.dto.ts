@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -42,6 +43,7 @@ export class PropriedadeDto {
 
   /** Ids das práticas de baixo carbono adotadas (ex.: "ilpf", "pd"). */
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   praticas: string[];
 
@@ -66,4 +68,16 @@ export class ChatCarbonoDto {
   /** Se o produtor já clicou em "Avaliar elegibilidade". */
   @IsBoolean()
   avaliado: boolean;
+}
+
+export class SalvarCarbonoDto {
+  /** Nome da propriedade, para identificar a avaliação no histórico. */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  nome: string;
+
+  @ValidateNested()
+  @Type(() => PropriedadeDto)
+  propriedade: PropriedadeDto;
 }

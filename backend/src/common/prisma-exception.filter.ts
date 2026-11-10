@@ -4,7 +4,7 @@ import { Prisma } from '../generated/prisma/client';
 
 const ERROS: Record<string, [number, string]> = {
   P2002: [HttpStatus.CONFLICT, 'Registro já existe.'],
-  P2003: [HttpStatus.BAD_REQUEST, 'Referência inválida (registro relacionado não existe).'],
+  P2003: [HttpStatus.CONFLICT, 'Não foi possível concluir: o registro está em uso ou a referência não existe.'],
   P2025: [HttpStatus.NOT_FOUND, 'Registro não encontrado.'],
 };
 

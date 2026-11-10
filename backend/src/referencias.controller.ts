@@ -1,9 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PADROES } from './carbono/carbono.dto';
 import { PrismaService } from './prisma/prisma.service';
 
 @ApiTags('referencias')
+@ApiBearerAuth()
 @Controller('referencias')
 export class ReferenciasController {
   constructor(private readonly prisma: PrismaService) {}

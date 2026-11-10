@@ -1,42 +1,29 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AgroReady — ExportBot + CarbonBot</title>
-  <meta name="description" content="Front-end do AgroReady: assistentes conversacionais de prontidão para exportação (ExportBot) e elegibilidade a créditos de carbono (CarbonBot).">
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-  <div class="app">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <span class="brand-mark">A</span>
-        <div>
-          <strong>AgroReady</strong>
-          <small>Analytics para Agronegócio</small>
-        </div>
-        <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">☰</button>
-      </div>
-      <nav class="nav" id="nav">
-        <a href="#/inicio" data-route="inicio">Início</a>
-        <a href="#/laudo" data-route="laudo">1 · Laudo (NER)</a>
-        <a href="#/exportbot" data-route="exportbot">2 · ExportBot</a>
-        <a href="#/carbonbot" data-route="carbonbot">3 · CarbonBot</a>
-        <a href="#/sobre" data-route="sobre">Sobre o projeto</a>
-      </nav>
-      <div class="side-foot">
-        <span class="badge">Sprint Zero · Protótipo front-end</span>
-        <small>Projeto 07 · OutTech · Fatec Cotia</small>
-      </div>
-    </aside>
-
-    <main class="main" id="view" tabindex="-1"></main>
-  </div>
-
-  <script src="js/data.js"></script>
-  <script src="js/ner.js"></script>
-  <script src="js/chat.js"></script>
-  <script src="js/app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgroReady — ExportBot + CarbonBot</title>
+    <meta
+      name="description"
+      content="AgroReady: leitura de laudos fitossanitários com PLN, prontidão para exportação (ExportBot) e elegibilidade a créditos de carbono (CarbonBot)."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231f5c3f'/%3E%3Cpath d='M9 23c0-8 5-13 14-14-1 9-6 14-14 14zm0 0 7-7' fill='none' stroke='%23f3c98b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <script>
+      // aplica o tema antes de pintar a página (evita piscar claro → escuro)
+      try {
+        document.documentElement.dataset.theme =
+          localStorage.getItem('agroready-tema') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

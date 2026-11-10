@@ -1,5 +1,5 @@
-import { htmlLista, ItemChecklist } from '../common/checklist';
-import { escapeHtml, normChars } from '../common/texto';
+import { AnaliseChat, ItemChecklist, RespostaChat, resumir } from '../common/checklist';
+import { criarClassificador } from '../pln/pln';
 
 /* Elegibilidade a créditos de carbono (mercado voluntário) + calculadora
    ILUSTRATIVA de tCO2e. Funções puras (sem banco) para facilitar os testes. */
@@ -67,7 +67,7 @@ export function avaliarCarbono(p: Propriedade, bioma: BiomaRef, praticas: Pratic
     label: `Reserva Legal ≥ ${bioma.reservaLegalMin}% (${bioma.nome})`,
     status: deficit <= 0 ? 'ok' : 'risco',
     note: deficit <= 0
-      ? `Atual: ${p.rl}% — em conformidade.`
+      ? `Atual: ${fmt(p.rl)}% — em conformidade.`
       : `Déficit de ${fmt(deficit)} p.p.; regularize via PRA antes de certificar.`,
   });
   items.push({
@@ -98,52 +98,137 @@ export function avaliarCarbono(p: Propriedade, bioma: BiomaRef, praticas: Pratic
     note: p.area >= AREA_MINIMA_HA ? `${fmt(p.area)} ha.` : 'Área pequena: considere projeto agrupado com outras propriedades.',
   });
 
-  const ok = items.filter((i) => i.status === 'ok').length;
-  return { items, ok, score: Math.round((ok / items.length) * 100), estimativa: estimarCreditos(p, praticas) };
+  return { items, resumo: resumir(items), estimativa: estimarCreditos(p, praticas) };
 }
 
-/** Chat do CarbonBot: classificação de intenção por palavras-chave. */
+type IntencaoCarbono =
+  | 'faltas' | 'creditos' | 'valor' | 'reserva' | 'praticas' | 'padrao' | 'mercado' | 'car' | 'mrv' | 'desmatamento'
+  | 'resumo' | 'saudacao' | 'ajuda' | 'agradecimento';
+
+const classificar = criarClassificador<IntencaoCarbono>([
+  {
+    id: 'faltas',
+    exemplos: [
+      'o que falta', 'o que falta para me qualificar', 'quais pendências', 'sou elegível', 'posso gerar créditos',
+      'o que está em risco', 'o que preciso ajustar', 'minha propriedade se qualifica',
+    ],
+  },
+  {
+    id: 'creditos',
+    exemplos: [
+      'quantos créditos', 'quantos créditos posso gerar', 'estimativa de créditos', 'potencial de carbono',
+      'quanto carbono', 'calcular tco2e', 'como é feito o cálculo',
+    ],
+  },
+  {
+    id: 'valor',
+    exemplos: ['quanto vale um crédito', 'quanto vou ganhar', 'preço do crédito de carbono', 'quanto dinheiro', 'receita com créditos', 'valor em reais'],
+  },
+  {
+    id: 'reserva',
+    exemplos: ['reserva legal', 'qual o mínimo de reserva legal', 'reserva legal do meu bioma', 'percentual de reserva', 'código florestal'],
+  },
+  {
+    id: 'praticas',
+    exemplos: ['práticas elegíveis', 'quais práticas contam', 'plano abc', 'ilpf', 'plantio direto', 'práticas de baixo carbono', 'manejo sustentável'],
+  },
+  {
+    id: 'padrao',
+    exemplos: ['qual padrão escolher', 'verra ou gold standard', 'padrão de certificação', 'qual certificadora', 'diferença entre os padrões'],
+  },
+  {
+    id: 'mercado',
+    exemplos: ['mercado regulado', 'sbce', 'sou obrigado', 'mercado voluntário', 'lei do mercado de carbono', 'como funciona o mercado de carbono'],
+  },
+  { id: 'car', exemplos: ['o que é car', 'preciso do car', 'sicar', 'cadastro ambiental rural'] },
+  { id: 'mrv', exemplos: ['o que é mrv', 'plano de monitoramento', 'monitoramento relato e verificação', 'como comprovar as remoções'] },
+  { id: 'desmatamento', exemplos: ['desmatei uma área', 'desmatamento recente', 'supressão de vegetação nativa', 'tive desmatamento'] },
+  { id: 'resumo', exemplos: ['resumo', 'status', 'como estou', 'situação da propriedade', 'resultado da avaliação'] },
+  { id: 'saudacao', exemplos: ['oi', 'olá', 'bom dia', 'boa tarde', 'boa noite'] },
+  { id: 'ajuda', exemplos: ['ajuda', 'o que você sabe fazer', 'como funciona', 'como você pode me ajudar'] },
+  { id: 'agradecimento', exemplos: ['obrigado', 'obrigada', 'valeu', 'muito obrigado'] },
+]);
+
+/** Chat do CarbonBot: intenção por similaridade TF-IDF + resposta montada a partir da avaliação. */
 export function responderCarbono(
   mensagem: string,
   p: Propriedade,
   avaliado: boolean,
   praticas: PraticaRef[],
-  r: AvaliacaoCarbono,
-): string {
-  const t = normChars(mensagem);
-  const bad = r.items.filter((i) => i.status !== 'ok');
-  const precisaAvaliar = 'Clique em <b>Avaliar elegibilidade</b> para eu analisar os dados da propriedade.';
-  const padrao = escapeHtml(p.padrao);
+  a: AvaliacaoCarbono,
+): RespostaChat & { analise: AnaliseChat } {
+  const c = classificar(mensagem);
+  const analise: AnaliseChat = { ...c, entidades: [] };
+  const r = (texto: string, itens: ItemChecklist[] = []) => ({ texto, ...(itens.length ? { itens } : {}), analise });
+  const ruins = a.items.filter((i) => i.status !== 'ok').sort((x, y) => Number(y.status === 'risco') - Number(x.status === 'risco'));
+  const precisaAvaliar = 'Preencha os dados e clique em **Avaliar elegibilidade** para eu analisar a propriedade.';
+  const item = (id: string) => a.items.find((i) => i.id === id)!;
+  const e = a.estimativa;
 
-  if (/regulad|sbce|obrigat/.test(t))
-    return 'O SBCE (Lei nº 15.042/2024) cria o mercado regulado brasileiro, mas <b>exclui a agropecuária</b> das obrigações. Para o produtor rural, o caminho é o <b>mercado voluntário</b>, com certificação por padrões como Verra VCS ou Gold Standard.';
-  if (/credito|tco2|quant|estimativ|calcul|potencial/.test(t)) {
-    if (!avaliado) return precisaAvaliar;
-    const e = r.estimativa;
-    if (!e.praticaBase) return 'Selecione ao menos uma prática de baixo carbono para eu estimar os créditos.';
-    return `Estimativa <b>ilustrativa</b>: ${fmt(e.areaProdutivaHa)} ha produtivos × ${fmt(e.praticaBase.fatorTco2eHaAno)} tCO2e/ha/ano (${escapeHtml(e.praticaBase.nome)}) = <b>${fmt(e.potencialTco2eAno)} tCO2e/ano</b>. Descontando ${e.bufferPct}% de buffer de não permanência: <b>~${fmt(e.creditosAno)} crédito(s)/ano</b> (1 crédito = 1 tCO2e).${bad.length ? ` Atenção: ${bad.length} critério(s) ainda precisam ser resolvidos antes da certificação.` : ''}`;
+  switch (c.intencao) {
+    case 'mercado':
+      return r(
+        'O SBCE (Lei nº 15.042/2024) cria o mercado regulado brasileiro, mas **exclui a agropecuária** das obrigações. Para o produtor rural, o caminho é o **mercado voluntário**, com certificação por padrões como Verra VCS ou Gold Standard.',
+      );
+    case 'padrao':
+      return r(
+        `Você selecionou **${p.padrao}**. O **Verra VCS** é o mais usado em projetos agrícolas e florestais; o **Gold Standard** dá ênfase a cobenefícios sociais e ambientais. A escolha depende do tipo de projeto e de quem compra os créditos.`,
+      );
+    case 'valor':
+      return r(
+        'Não estimo valores em reais: o preço do crédito varia muito com o padrão, o tipo de projeto e o comprador. O que calculo é a **quantidade** potencial de créditos (1 crédito = 1 tCO2e) — pergunte “quantos créditos?”.',
+      );
+    case 'car':
+      return r(`O **CAR** (Cadastro Ambiental Rural) registra o imóvel, as APPs e a Reserva Legal no SICAR. Sem ele não há como comprovar a regularidade ambiental. Na sua avaliação: ${item('car').note}`);
+    case 'mrv':
+      return r(`**MRV** é o plano de monitoramento, relato e verificação: como as remoções serão medidas e auditadas por terceira parte. Na sua avaliação: ${item('mrv').note}`);
+    case 'desmatamento':
+      return r(`Padrões voluntários costumam recusar áreas com supressão recente de vegetação nativa. Na sua avaliação: ${item('desmatamento').note}`);
+    case 'reserva':
+      return r(`**${item('rl').label}**: ${item('rl').note}`);
+    case 'praticas':
+      return r(
+        'Práticas do Plano ABC+ consideradas (fatores ilustrativos):',
+        praticas.map((x) => {
+          const adotada = p.praticas.includes(x.id);
+          return {
+            id: x.id,
+            label: x.nome,
+            status: adotada ? ('ok' as const) : ('pendente' as const),
+            note: `${fmt(x.fatorTco2eHaAno)} tCO2e/ha/ano · ${adotada ? 'adotada' : 'não adotada'}`,
+          };
+        }),
+      );
+    case 'saudacao':
+      return r('Olá! Sou o CarbonBot. Avalio se a propriedade pode gerar créditos de carbono no mercado voluntário e estimo o potencial.');
+    case 'ajuda':
+      return r(
+        'Posso falar sobre **o que falta** para se qualificar, **estimativa de créditos**, **Reserva Legal**, **práticas elegíveis**, **padrão de certificação**, **CAR**, **MRV** e **mercado regulado**.',
+      );
+    case 'agradecimento':
+      return r('De nada! Se precisar, é só perguntar.');
+    case null:
+      return r('Não entendi bem. Tente: “o que falta?”, “quantos créditos?”, “Reserva Legal”, “práticas elegíveis” ou “mercado regulado?”.');
   }
-  if (/padrao|verra|gold|certific/.test(t))
-    return `Você selecionou <b>${padrao}</b>. O <b>Verra VCS</b> é o mais usado em projetos agrícolas e florestais; o <b>Gold Standard</b> dá ênfase a cobenefícios sociais e ambientais. A escolha depende do tipo de projeto e do comprador dos créditos.`;
-  if (/reserva|legal|\brl\b/.test(t)) {
-    const i = r.items.find((x) => x.id === 'rl')!;
-    return `<b>${escapeHtml(i.label)}</b>: ${escapeHtml(i.note)}`;
+
+  // Daqui em diante a resposta depende da avaliação
+  if (!avaliado) return r(precisaAvaliar);
+  switch (c.intencao) {
+    case 'creditos':
+      if (!e.praticaBase) return r('Selecione ao menos uma prática de baixo carbono para eu estimar os créditos.');
+      return r(
+        `Estimativa **ilustrativa**: ${fmt(e.areaProdutivaHa)} ha produtivos × ${fmt(e.praticaBase.fatorTco2eHaAno)} tCO2e/ha/ano (${e.praticaBase.nome}) = **${fmt(e.potencialTco2eAno)} tCO2e/ano**. Descontando ${e.bufferPct}% de buffer de não permanência: **~${fmt(e.creditosAno)} crédito(s)/ano** (1 crédito = 1 tCO2e).` +
+          (ruins.length ? ` Atenção: ${ruins.length} critério(s) ainda precisam ser resolvidos antes da certificação.` : ''),
+      );
+    case 'faltas':
+      return ruins.length
+        ? r('Para se qualificar, ajuste:', ruins)
+        : r('Todos os critérios avaliados estão atendidos. O próximo passo é estruturar o projeto junto a uma certificadora.');
+    default:
+      return r(
+        `**${a.resumo.ok}** de **${a.items.length}** critérios atendidos (**${a.resumo.score}%**) para o padrão **${p.padrao}**.` +
+          (ruins.length ? ` Pendências: ${ruins.length}.` : '') +
+          ` Potencial estimado: **~${fmt(e.creditosAno)} crédito(s)/ano**.`,
+      );
   }
-  if (/pratica|abc|ilpf|manejo/.test(t))
-    return `Práticas do Plano ABC+ consideradas: <ul>${praticas
-      .map((x) => `<li>${escapeHtml(x.nome)} (${fmt(x.fatorTco2eHaAno)} tCO2e/ha/ano)${p.praticas.includes(x.id) ? ' ✓' : ''}</li>`)
-      .join('')}</ul>`;
-  if (/falta|pendent|qualific|risco|elegi/.test(t)) {
-    if (!avaliado) return precisaAvaliar;
-    return bad.length
-      ? `Para se qualificar, ajuste:${htmlLista(bad)}`
-      : 'Todos os critérios avaliados estão atendidos. 🎉 O próximo passo é estruturar o projeto junto a uma certificadora.';
-  }
-  if (/resumo|summary|status|avali/.test(t)) {
-    if (!avaliado) return precisaAvaliar;
-    return `<b>${r.ok}</b> de <b>${r.items.length}</b> critérios atendidos (<b>${r.score}%</b>) para o padrão <b>${padrao}</b>.${bad.length ? ` Pendências: ${bad.length}.` : ''} Potencial estimado: <b>~${fmt(r.estimativa.creditosAno)} crédito(s)/ano</b>.`;
-  }
-  if (/ajuda|help|\boi\b|\bola\b/.test(t))
-    return 'Posso falar sobre: <b>o que falta</b>, <b>estimativa de créditos</b>, <b>Reserva Legal</b>, <b>práticas elegíveis</b>, <b>padrão de certificação</b> e <b>mercado regulado</b>.';
-  return 'Não entendi bem. Tente: “o que falta?”, “quantos créditos?”, “Reserva Legal”, “práticas elegíveis” ou “mercado regulado?”.';
 }

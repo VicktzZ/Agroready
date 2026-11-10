@@ -16,6 +16,24 @@ enum TipoEntidade {
   CULTURA
 }
 
+enum Papel {
+  ADMIN /// mantém regras, dicionário e catálogos
+  PRODUTOR
+}
+
+model Usuario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senhaHash String /// scrypt, "salHex:hashHex"
+  papel     Papel    @default(PRODUTOR)
+  createdAt DateTime @default(now())
+
+  laudos               Laudo[]
+  avaliacoesExportacao AvaliacaoExportacao[]
+  avaliacoesCarbono    AvaliacaoCarbono[]
+}
+
 model TermoNer {
   id    Int          @id @default(autoincrement())
   tipo  TipoEntidade
@@ -23,17 +41,19 @@ model TermoNer {
 }
 
 model Destino {
-  id     String            @id // ex.: "ue"
-  nome   String
-  nomeEn String
-  regras RegraExportacao[]
+  id         String                @id // ex.: "ue"
+  nome       String
+  nomeEn     String
+  regras     RegraExportacao[]
+  avaliacoes AvaliacaoExportacao[]
 }
 
 model Cultura {
-  id     String            @id // ex.: "soja"
-  nome   String
-  nomeEn String
-  regras RegraExportacao[]
+  id         String                @id // ex.: "soja"
+  nome       String
+  nomeEn     String
+  regras     RegraExportacao[]
+  avaliacoes AvaliacaoExportacao[]
 }
 
 /// Exigências por destino × cultura (ilustrativas).
@@ -65,8 +85,49 @@ model PraticaCarbono {
 
 model Laudo {
   id        String   @id @default(uuid())
+  titulo    String? /// nome do arquivo enviado ou da propriedade
+  origem    String   @default("texto") /// "texto" | "txt" | "pdf"
   texto     String
   numero    String?
   entidades Json /// resultado do NER (itens + resumo)
   createdAt DateTime @default(now())
+  /// Nulo só em laudos anteriores ao login; o seed os entrega ao administrador.
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  avaliacoes AvaliacaoExportacao[]
+
+  @@index([usuarioId, createdAt])
+}
+
+/// Avaliação de exportação salva pelo produtor (aparece no histórico e no relatório).
+model AvaliacaoExportacao {
+  id              String   @id @default(uuid())
+  usuarioId       String
+  laudoId         String
+  destinoId       String
+  culturaId       String
+  embarque        String? /// YYYY-MM-DD
+  docsConfirmados String[]
+  resultado       Json /// retrato no momento em que foi salva, em PT e EN: { pt, en }
+  createdAt       DateTime @default(now())
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  laudo           Laudo    @relation(fields: [laudoId], references: [id], onDelete: Cascade)
+  destino         Destino  @relation(fields: [destinoId], references: [id], onDelete: Restrict)
+  cultura         Cultura  @relation(fields: [culturaId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId, createdAt])
+}
+
+/// Avaliação de elegibilidade a créditos de carbono salva pelo produtor.
+model AvaliacaoCarbono {
+  id        String   @id @default(uuid())
+  usuarioId String
+  nome      String /// nome da propriedade
+  dados     Json /// formulário enviado (PropriedadeDto)
+  resultado Json /// checklist, score e estimativa no momento em que foi salva
+  createdAt DateTime @default(now())
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, createdAt])
 }
