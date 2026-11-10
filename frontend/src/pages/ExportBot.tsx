@@ -27,12 +27,12 @@ const preferencias = (): Partial<Form> => {
 const TEXTOS = {
   pt: {
     saudacao: 'Olá! Sou o **ExportBot**. Escolha o laudo, o destino e a cultura: eu cruzo tudo com as exigências e respondo suas dúvidas.',
-    sugestoes: ['O que está pendente?', 'Quais pragas?', 'Documentos', 'Prazo da inspeção', 'O que a China exige?'],
+    sugestoes: (destino: string) => ['O que está pendente?', 'Quais pragas?', 'Documentos', 'Prazo da inspeção', `Exigências para ${destino}`],
     unidade: 'exigências atendidas',
   },
   en: {
     saudacao: 'Hi! I am **ExportBot**. Pick the report, destination and crop: I cross-check everything with the requirements and answer your questions.',
-    sugestoes: ['What is pending?', 'Which pests?', 'Documents', 'Inspection deadline', 'What does China require?'],
+    sugestoes: (destino: string) => ['What is pending?', 'Which pests?', 'Documents', 'Inspection deadline', `Requirements for ${destino}`],
     unidade: 'requirements met',
   },
 };
@@ -150,6 +150,9 @@ export function ExportBot() {
   }
 
   const L = TEXTOS[form.lang];
+  // a sugestão de exigências segue o destino escolhido na tela
+  const destinoAtual = refs.dados!.destinos.find((d) => d.id === form.destino);
+  const nomeDestino = (form.lang === 'pt' ? destinoAtual?.nome : destinoAtual?.nomeEn) ?? '';
   const laudo = laudos.dados!.find((l) => l.id === form.laudoId);
   const semCatalogo = !refs.dados!.destinos.length || !refs.dados!.culturas.length;
 
@@ -266,7 +269,7 @@ export function ExportBot() {
           nome="ExportBot"
           descricao={form.lang === 'pt' ? 'assistente de exportação' : 'export assistant'}
           saudacao={L.saudacao}
-          sugestoes={L.sugestoes}
+          sugestoes={L.sugestoes(nomeDestino)}
           placeholder={form.lang === 'pt' ? 'Pergunte sobre pendências, pragas, prazo…' : 'Ask about pending items, pests, deadline…'}
           enviar={(mensagem) => api<RespostaChat>('/export/chat', { body: { ...contexto(form), mensagem } })}
         />

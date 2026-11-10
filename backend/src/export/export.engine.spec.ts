@@ -108,6 +108,12 @@ describe('responderExportacao', () => {
     expect(responderExportacao('qual a previsão do tempo?', 'pt', ctx()).analise.intencao).toBeNull();
   });
 
+  it('a sugestão "Exigências para <destino>" da tela cai na intenção de regras (PT e EN)', () => {
+    // o serviço tira o nome do destino da pergunta antes de classificar
+    expect(responderExportacao('exigencias para', 'pt', ctx(), { trocouContexto: true }).analise.intencao).toBe('regra');
+    expect(responderExportacao('requirements for', 'en', ctx(), { trocouContexto: true }).analise.intencao).toBe('regra');
+  });
+
   it('pergunta só com o destino vira resumo', () => {
     expect(responderExportacao('e para a', 'pt', ctx(), { trocouContexto: true }).analise.intencao).toBe('resumo');
   });
