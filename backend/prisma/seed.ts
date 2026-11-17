@@ -3,12 +3,13 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { gerarHash } from '../src/auth/senha';
 import { PrismaClient, TipoEntidade } from '../src/generated/prisma/client';
 import { DICIONARIO_PADRAO } from '../src/ner/dicionario-padrao';
+import { urlDoBanco } from '../src/prisma/conexao';
 
 /* Dados ILUSTRATIVOS de referência + conta de administrador.
    Idempotente: pode rodar várias vezes (roda a cada deploy na Vercel). Usa `update: {}`,
    então nunca sobrescreve o que o administrador editou pela aplicação. */
 
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: urlDoBanco(process.env.DATABASE_URL!) }) });
 
 // ---------------------------------------------------------------- dicionário do NER
 const TERMOS: Record<TipoEntidade, string[]> = DICIONARIO_PADRAO;
