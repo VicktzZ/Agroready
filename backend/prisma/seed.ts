@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { gerarHash } from '../src/auth/senha';
 import { PrismaClient, TipoEntidade } from '../src/generated/prisma/client';
+import { DICIONARIO_PADRAO } from '../src/ner/dicionario-padrao';
 
 /* Dados ILUSTRATIVOS de referência + conta de administrador.
    Idempotente: pode rodar várias vezes (roda a cada deploy na Vercel). Usa `update: {}`,
@@ -10,31 +11,7 @@ import { PrismaClient, TipoEntidade } from '../src/generated/prisma/client';
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 
 // ---------------------------------------------------------------- dicionário do NER
-const TERMOS: Record<TipoEntidade, string[]> = {
-  PRAGA: [
-    // soja
-    'lagarta-da-soja', 'lagarta-falsa-medideira', 'lagarta-helicoverpa', 'percevejo-marrom', 'percevejo-verde',
-    'percevejo-barriga-verde', 'mosca-branca', 'ácaro-vermelho', 'ácaro-rajado', 'nematoide-de-cisto',
-    'nematoide-das-galhas', 'pulgão', 'tripes',
-    // café
-    'broca-do-café', 'bicho-mineiro', 'cochonilha-da-raiz',
-    // milho, algodão, cana, arroz e citros
-    'lagarta-do-cartucho', 'lagarta-elasmo', 'cigarrinha-do-milho', 'gorgulho', 'bicudo-do-algodoeiro',
-    'broca-da-cana', 'cigarrinha-das-raízes', 'percevejo-do-colmo', 'mosca-das-frutas', 'psilídeo-dos-citros',
-    'ácaro-da-leprose',
-  ],
-  DOENCA: [
-    // soja
-    'ferrugem-asiática', 'mancha-alvo', 'antracnose', 'mofo-branco', 'oídio', 'cancro-da-haste', 'podridão-radicular',
-    'mancha-parda', 'murcha-de-fusarium',
-    // café
-    'ferrugem-do-cafeeiro', 'cercosporiose', 'mancha-de-phoma', 'mancha-aureolada',
-    // trigo, arroz, milho, algodão, cana e citros
-    'brusone', 'giberela', 'ferrugem-da-folha', 'mancha-branca', 'míldio', 'podridão-do-colmo', 'ramulose',
-    'ferrugem-alaranjada', 'carvão', 'cancro-cítrico', 'greening', 'mancha-preta-dos-citros',
-  ],
-  CULTURA: ['soja', 'café', 'milho', 'algodão', 'trigo', 'arroz', 'laranja', 'cana-de-açúcar'],
-};
+const TERMOS: Record<TipoEntidade, string[]> = DICIONARIO_PADRAO;
 
 // ---------------------------------------------------------------- catálogos
 const DESTINOS = [

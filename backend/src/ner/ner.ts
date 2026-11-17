@@ -74,6 +74,10 @@ const NEGACAO = new Set([
   'nao', 'sem', 'nem', 'ausencia', 'ausente', 'ausentes', 'livre', 'livres', 'isento', 'isenta', 'isentos', 'isentas',
   'nenhum', 'nenhuma', 'negativo', 'negativa', 'inexistencia', 'inexistente',
 ]);
+/** Negação logo DEPOIS do termo: "giberela ausente", "mosca-branca: não detectada." Texto já normalizado, a partir do fim do termo.
+ *  O verbo precisa fechar a oração: em "X, não foi constatada Y" a negação é de Y, não de X. */
+const NEGACAO_POSTERIOR =
+  /^[\s:,(-]{0,3}(?:ausentes?|inexistentes?|nao\s+(?:foi\s+|foram\s+|houve\s+)?(?:detect|constat|encontr|observ|ocorr|identific|verific|registr)\w*\s*(?:[.;!?,)]|$|\n))/;
 const ADVERSATIVA = new Set(['mas', 'porem', 'contudo', 'entretanto', 'todavia', 'exceto', 'salvo']);
 const LIGACAO = new Set(['e', 'ou', 'nem', 'de', 'da', 'do', 'das', 'dos']);
 const FIM_DE_ORACAO = /[.;!?,:()]|\n\s*\n/;
@@ -145,6 +149,7 @@ function casarPadroes(text: string, norm: string): Entidade[] {
 /** NegEx simplificado: gatilho de negação até 6 palavras antes, na mesma oração.
  *  ponytail: janela fixa; uma análise sintática de dependências resolveria casos longos. */
 function marcarNegacoes(text: string, tokens: Token[], items: Entidade[]) {
+  const norm = normChars(text);
   let anterior: Entidade | undefined;
   for (const e of items) {
     if (e.type !== 'PRAGA' && e.type !== 'DOENCA') continue;
@@ -163,6 +168,7 @@ function marcarNegacoes(text: string, tokens: Token[], items: Entidade[]) {
         }
       }
     }
+    if (!e.negada && NEGACAO_POSTERIOR.test(norm.slice(e.end, e.end + 80))) e.negada = true;
     anterior = e;
   }
 }

@@ -35,7 +35,13 @@ Para rodar tudo em uma porta só (apresentação): `npm run build` em `frontend/
 a aplicação em http://localhost:3000.
 
 - Swagger: http://localhost:3000/api/docs
-- Testes unitários (PLN, NER, motores dos bots): `npm test` em `backend/`
+- Testes unitários (PLN, NER, motores dos bots, limite de login): `npm test` em `backend/`
+- **Avaliação do NER**: `npm run avaliar:ner` em `backend/` (`-- --erros` detalha cada divergência). Compara a extração com 33
+  laudos anotados à mão (`backend/avaliacao/laudos-anotados.json`) e imprime precisão, revocação e F1 por tipo de entidade.
+  O corpus foi anotado pelo próprio desenvolvedor, então os números servem de guarda contra regressões (há testes que
+  quebram se o F1 cair), não de medida de qualidade em laudos reais.
+- **CI** (`.github/workflows/ci.yml`): a cada push e PR roda build, testes, avaliação do NER, migrações + seed em um Postgres
+  limpo (duas vezes, para provar a idempotência) e o build do frontend.
 
 ## Publicar na Vercel
 O `vercel.json` da raiz publica os dois lados no mesmo projeto (Vercel Services): `/api/*` vai para `backend/`, o resto para `frontend/`.
@@ -92,4 +98,8 @@ Novos usuários veem um tutorial guiado na primeira visita (também em "Tutorial
 - A estimativa de créditos usa a prática de maior fator sobre a área produtiva e desconta 20% de buffer; não soma práticas.
 - NER por regras (dicionário + padrões), não por modelo treinado; um modelo (ex.: spaCy) pode substituí-lo com corpus anotado.
 - PDF escaneado e imagem não são lidos (sem OCR).
-- Sem limite de tentativas de login: adicionar antes de expor na internet.
+- Limite de tentativas de login/cadastro em memória, por instância do servidor: em serverless cada instância conta sozinha.
+  Para um limite global, guardar os contadores no banco ou em Redis.
+- A migração `seguranca_rls` liga o RLS em todas as tabelas (sem políticas): no Supabase isso impede que a chave pública
+  `anon` leia as tabelas pela API REST. Mesmo assim, desative a Data API do projeto e troque as chaves se elas já vazaram.
+- NER por regras: não reconhece sinônimos/nomes populares ("ferrugem da soja" = ferrugem-asiática) nem severidade.
