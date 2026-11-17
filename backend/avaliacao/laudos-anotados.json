@@ -1,0 +1,332 @@
+[
+  {
+    "id": "exemplo-soja-cafe",
+    "descricao": "Laudo de exemplo do sistema: duas culturas, dois talhões, negação simples e planta/praga em talhões diferentes.",
+    "texto": "LAUDO FITOSSANITÁRIO Nº 2026/0842\nPropriedade: Fazenda Santa Clara — Município de Cristalina/GO\n\nTalhão 03 (soja, 42 ha): inspeção realizada em 12/08/2026 pelo engenheiro agrônomo responsável. Foi constatada ferrugem-asiática em nível baixo e presença de percevejos-marrons abaixo do nível de ação. Não foi constatada mosca-branca. Aplicação de fungicida em 20/08/2026.\n\nTalhão 07 (café, 18 ha): inspeção realizada em 14/08/2026. Detectada broca-do-café em 2% dos frutos amostrados e sinais de cercosporiose. Manejo com controle biológico iniciado em 25/08/2026.\n\nConclusão: lavouras em condição fitossanitária controlada, com monitoramento semanal.",
+    "esperado": {
+      "entidades": ["CULTURA:soja", "CULTURA:café", "TALHAO:talhão 03", "TALHAO:talhão 07", "DATA:2026-08-12", "DATA:2026-08-20", "DATA:2026-08-14", "DATA:2026-08-25", "DOENCA:ferrugem-asiática", "DOENCA:cercosporiose", "PRAGA:percevejo-marrom", "PRAGA:mosca-branca!ausente", "PRAGA:broca-do-café"],
+      "ultimaInspecao": "2026-08-14",
+      "laudoNumero": "2026/0842"
+    }
+  },
+  {
+    "id": "exemplo-soja-limpa",
+    "descricao": "Laudo de exemplo: quase tudo ausente, data por extenso, enumeração negada.",
+    "texto": "LAUDO FITOSSANITÁRIO Nº 2026/1107\nPropriedade: Fazenda Boa Esperança — Município de Sorriso/MT\n\nTalhão 01 (soja, 180 ha): inspeção realizada em 3 de novembro de 2026. Lavoura em estádio R5. Ausência de ferrugem-asiática, mancha-alvo e mofo-branco. Não foram encontrados percevejo-marrom nem mosca-branca nas amostragens de pano de batida.\n\nTalhão 02 (soja, 95 ha): inspeção realizada em 04/11/2026. Não foi constatada lagarta-da-soja. Presença de lagarta-falsa-medideira abaixo do nível de controle.\n\nConclusão: área apta, sem pragas quarentenárias detectadas.",
+    "esperado": {
+      "entidades": ["CULTURA:soja", "TALHAO:talhão 01", "TALHAO:talhão 02", "DATA:2026-11-03", "DATA:2026-11-04", "DOENCA:ferrugem-asiática!ausente", "DOENCA:mancha-alvo!ausente", "DOENCA:mofo-branco!ausente", "PRAGA:percevejo-marrom!ausente", "PRAGA:mosca-branca!ausente", "PRAGA:lagarta-da-soja!ausente", "PRAGA:lagarta-falsa-medideira"],
+      "ultimaInspecao": "2026-11-04",
+      "laudoNumero": "2026/1107"
+    }
+  },
+  {
+    "id": "exemplo-digitado-as-pressas",
+    "descricao": "Laudo de exemplo: sem acento, sem hífen, erros de digitação.",
+    "texto": "Laudo de inspecao de campo\nFazenda Sao Jorge, municipio de Rio Verde/GO\n\ntalhao 4 - soja - 60 hectares. inspecao feita em 28/10/2026. encontrada ferugem asiatica nas folhas de baixo e muitos percevejos marrons. tambem tem mofo branco em reboleira.\n\ntalhao 5 - soja - 35 hectares. inspecao feita em 28/10/2026. sem mosca branca e sem lagarta da soja.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 4", "TALHAO:talhão 5", "CULTURA:soja", "DATA:2026-10-28", "DOENCA:ferrugem-asiática", "DOENCA:mofo-branco", "PRAGA:percevejo-marrom", "PRAGA:mosca-branca!ausente", "PRAGA:lagarta-da-soja!ausente"],
+      "ultimaInspecao": "2026-10-28",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "basico-presencas",
+    "descricao": "Caso mais simples: praga e doença presentes.",
+    "texto": "LAUDO FITOSSANITÁRIO Nº 2026/0101\nTalhão 01 (soja, 30 ha): inspeção realizada em 05/09/2026. Constatado percevejo-marrom em nível de ação. Presença de ferrugem-asiática.",
+    "esperado": {
+      "entidades": ["CULTURA:soja", "PRAGA:percevejo-marrom", "DOENCA:ferrugem-asiática", "DATA:2026-09-05", "TALHAO:talhão 01"],
+      "ultimaInspecao": "2026-09-05",
+      "laudoNumero": "2026/0101"
+    }
+  },
+  {
+    "id": "plural-vistoria",
+    "descricao": "Plural dos termos e a palavra 'vistoria' como inspeção.",
+    "texto": "Talhão 02 (café): vistoria em 10/09/2026. Foram observados bichos-mineiros nas folhas e focos de cercosporiose.",
+    "esperado": {
+      "entidades": ["CULTURA:café", "PRAGA:bicho-mineiro", "DOENCA:cercosporiose", "DATA:2026-09-10", "TALHAO:talhão 02"],
+      "ultimaInspecao": "2026-09-10",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "negacao-simples",
+    "descricao": "'Não foi constatada' e 'Sem presença de'.",
+    "texto": "Talhão 03 (soja): inspeção em 11/09/2026. Não foi constatada ferrugem-asiática. Sem presença de mosca-branca.",
+    "esperado": {
+      "entidades": ["CULTURA:soja", "DOENCA:ferrugem-asiática!ausente", "PRAGA:mosca-branca!ausente", "DATA:2026-09-11", "TALHAO:talhão 03"],
+      "ultimaInspecao": "2026-09-11",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "negacao-enumeracao",
+    "descricao": "Uma negação que vale para uma lista inteira.",
+    "texto": "Ausência de mancha-alvo, antracnose e mofo-branco na área. Talhão 04 de soja inspecionado em 12/09/2026.",
+    "esperado": {
+      "entidades": ["DOENCA:mancha-alvo!ausente", "DOENCA:antracnose!ausente", "DOENCA:mofo-branco!ausente", "CULTURA:soja", "TALHAO:talhão 04", "DATA:2026-09-12"],
+      "ultimaInspecao": "2026-09-12",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "negacao-adversativa",
+    "descricao": "'Não ... mas há ...': a negação não vaza para depois do 'mas'.",
+    "texto": "Não foi constatada mosca-branca, mas há percevejo-verde em baixa população. Inspeção em 13/09/2026 no talhão 05 (soja).",
+    "esperado": {
+      "entidades": ["PRAGA:mosca-branca!ausente", "PRAGA:percevejo-verde", "CULTURA:soja", "DATA:2026-09-13", "TALHAO:talhão 05"],
+      "ultimaInspecao": "2026-09-13",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "erro-digitacao",
+    "descricao": "Sem acento, erros de digitação e plural.",
+    "texto": "talhao 6 - soja - ferugem asiatica e percevejos marrons. inspecao em 14/09/2026.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 6", "CULTURA:soja", "DOENCA:ferrugem-asiática", "PRAGA:percevejo-marrom", "DATA:2026-09-14"],
+      "ultimaInspecao": "2026-09-14",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "data-por-extenso",
+    "descricao": "Data por extenso e número do laudo no formato curto.",
+    "texto": "Laudo nº 2026/0207. Inspeção realizada em 3 de outubro de 2026 no talhão 07 (milho). Detectada lagarta-do-cartucho.",
+    "esperado": {
+      "entidades": ["DATA:2026-10-03", "TALHAO:talhão 07", "CULTURA:milho", "PRAGA:lagarta-do-cartucho"],
+      "ultimaInspecao": "2026-10-03",
+      "laudoNumero": "2026/0207"
+    }
+  },
+  {
+    "id": "duas-inspecoes",
+    "descricao": "Duas inspeções no mesmo talhão. 'giberela ausente' tem a negação DEPOIS do termo (limitação conhecida).",
+    "texto": "Talhão 01 (trigo): inspeção em 01/10/2026 com brusone. Nova inspeção em 15/10/2026: brusone controlada, giberela ausente.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 01", "CULTURA:trigo", "DOENCA:brusone", "DOENCA:giberela!ausente", "DATA:2026-10-01", "DATA:2026-10-15"],
+      "ultimaInspecao": "2026-10-15",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "negacao-depois-do-termo",
+    "descricao": "'mosca-branca: não detectada': negação depois do termo (limitação conhecida).",
+    "texto": "Mosca-branca: não detectada. Talhão 09 (algodão), inspeção em 02/10/2026.",
+    "esperado": {
+      "entidades": ["PRAGA:mosca-branca!ausente", "TALHAO:talhão 09", "CULTURA:algodão", "DATA:2026-10-02"],
+      "ultimaInspecao": "2026-10-02",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "broca-do-cafe-espacos",
+    "descricao": "'broca do café' com espaços e a cultura citada à parte.",
+    "texto": "Talhão 10 (café) inspecionado em 04/10/2026: detectada broca do café em 3% dos frutos.",
+    "esperado": {
+      "entidades": ["CULTURA:café", "PRAGA:broca-do-café", "TALHAO:talhão 10", "DATA:2026-10-04"],
+      "ultimaInspecao": "2026-10-04",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "ambiguidade-cafe",
+    "descricao": "Só aparece 'broca-do-café': não há cultura café citada, só a praga.",
+    "texto": "Constatada broca-do-café. Inspeção em 05/10/2026.",
+    "esperado": {
+      "entidades": ["PRAGA:broca-do-café", "DATA:2026-10-05"],
+      "ultimaInspecao": "2026-10-05",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "dois-talhoes-arroz",
+    "descricao": "Dois talhões na mesma frase, com área decimal.",
+    "texto": "Talhão 11 (arroz, 20 ha) e Talhão 12 (arroz, 15,5 ha): brusone e percevejo-do-colmo. Vistoria em 06/10/2026.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 11", "TALHAO:talhão 12", "CULTURA:arroz", "DOENCA:brusone", "PRAGA:percevejo-do-colmo", "DATA:2026-10-06"],
+      "ultimaInspecao": "2026-10-06",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "data-com-pontos",
+    "descricao": "Data com pontos e 'sem' antes da última praga.",
+    "texto": "Inspeção em 07.10.2026 – talhão 13 (laranja): greening e cancro-cítrico presentes; sem psilídeo-dos-citros.",
+    "esperado": {
+      "entidades": ["DATA:2026-10-07", "TALHAO:talhão 13", "CULTURA:laranja", "DOENCA:greening", "DOENCA:cancro-cítrico", "PRAGA:psilídeo-dos-citros!ausente"],
+      "ultimaInspecao": "2026-10-07",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "sinonimo-popular",
+    "descricao": "'ferrugem da soja' é a ferrugem-asiática (sinônimo; o dicionário ainda não tem apelidos).",
+    "texto": "Talhão 14 (soja): inspeção em 08/10/2026. Ocorrência de ferrugem da soja e do percevejo marrom.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 14", "CULTURA:soja", "DATA:2026-10-08", "DOENCA:ferrugem-asiática", "PRAGA:percevejo-marrom"],
+      "ultimaInspecao": "2026-10-08",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "nome-cientifico-entre-parenteses",
+    "descricao": "Nome científico seguido do nome comum entre parênteses.",
+    "texto": "Talhão 15 (soja): Phakopsora pachyrhizi (ferrugem-asiática) confirmada. Inspeção em 09/10/2026.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 15", "CULTURA:soja", "DOENCA:ferrugem-asiática", "DATA:2026-10-09"],
+      "ultimaInspecao": "2026-10-09",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "cana-cultura-composta",
+    "descricao": "Cultura com três palavras e pragas com 'cana' no nome.",
+    "texto": "Cana-de-açúcar no talhão 17 (40 ha), vistoria em 11/10/2026: broca-da-cana controlada, cigarrinha-das-raízes em baixa densidade.",
+    "esperado": {
+      "entidades": ["CULTURA:cana-de-açúcar", "TALHAO:talhão 17", "DATA:2026-10-11", "PRAGA:broca-da-cana", "PRAGA:cigarrinha-das-raízes"],
+      "ultimaInspecao": "2026-10-11",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "nem-nem",
+    "descricao": "'não foram encontrados nem X nem Y'.",
+    "texto": "Não foram encontrados nem percevejo-marrom nem lagarta-da-soja nas amostragens. Talhão 18 (soja) inspecionado em 12/10/2026.",
+    "esperado": {
+      "entidades": ["PRAGA:percevejo-marrom!ausente", "PRAGA:lagarta-da-soja!ausente", "TALHAO:talhão 18", "CULTURA:soja", "DATA:2026-10-12"],
+      "ultimaInspecao": "2026-10-12",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "livre-de",
+    "descricao": "'livre de X e de Y'.",
+    "texto": "Área livre de mosca-das-frutas e de bicudo-do-algodoeiro. Talhão 19 (algodão), inspeção em 13/10/2026.",
+    "esperado": {
+      "entidades": ["PRAGA:mosca-das-frutas!ausente", "PRAGA:bicudo-do-algodoeiro!ausente", "TALHAO:talhão 19", "CULTURA:algodão", "DATA:2026-10-13"],
+      "ultimaInspecao": "2026-10-13",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "sem-nenhuma-entidade-fitossanitaria",
+    "descricao": "Conclusão genérica ('sem sinais de doenças') não gera entidade.",
+    "texto": "Conclusão: lavoura em bom estado, sem sinais de doenças. Inspeção em 14/10/2026 (talhão 20, trigo).",
+    "esperado": {
+      "entidades": ["DATA:2026-10-14", "TALHAO:talhão 20", "CULTURA:trigo"],
+      "ultimaInspecao": "2026-10-14",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "data-de-embarque-nao-e-inspecao",
+    "descricao": "A data de embarque não é a data da inspeção.",
+    "texto": "Embarque de soja e milho previsto para 20/11/2026. Inspeção em 15/10/2026 no talhão 21 (soja).",
+    "esperado": {
+      "entidades": ["CULTURA:soja", "CULTURA:milho", "DATA:2026-11-20", "DATA:2026-10-15", "TALHAO:talhão 21"],
+      "ultimaInspecao": "2026-10-15",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "data-invalida",
+    "descricao": "31/02 não é data.",
+    "texto": "Número de lotes: 31/02/2026 (erro de digitação). Inspeção em 16/10/2026, talhão 22 (soja).",
+    "esperado": {
+      "entidades": ["DATA:2026-10-16", "TALHAO:talhão 22", "CULTURA:soja"],
+      "ultimaInspecao": "2026-10-16",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "caixa-alta-sem-acento",
+    "descricao": "Tudo em maiúsculas e sem acento.",
+    "texto": "TALHÃO 23 - CAFÉ - BICHO MINEIRO E BROCA DO CAFÉ DETECTADOS. VISTORIA EM 17/10/2026.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 23", "CULTURA:café", "PRAGA:bicho-mineiro", "PRAGA:broca-do-café", "DATA:2026-10-17"],
+      "ultimaInspecao": "2026-10-17",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "lista-longa-presentes",
+    "descricao": "Lista longa de pragas presentes.",
+    "texto": "Talhão 24 (soja): constatadas lagarta-da-soja, lagarta-falsa-medideira, percevejo-verde, ácaro-rajado e tripes. Inspeção em 18/10/2026.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 24", "CULTURA:soja", "PRAGA:lagarta-da-soja", "PRAGA:lagarta-falsa-medideira", "PRAGA:percevejo-verde", "PRAGA:ácaro-rajado", "PRAGA:tripes", "DATA:2026-10-18"],
+      "ultimaInspecao": "2026-10-18",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "negacao-e-presenca-na-mesma-frase",
+    "descricao": "'Sem X, porém com Y e Z'.",
+    "texto": "Sem ferrugem-asiática, porém com mancha-alvo e mofo-branco. Talhão 25 (soja) inspecionado em 19/10/2026.",
+    "esperado": {
+      "entidades": ["DOENCA:ferrugem-asiática!ausente", "DOENCA:mancha-alvo", "DOENCA:mofo-branco", "TALHAO:talhão 25", "CULTURA:soja", "DATA:2026-10-19"],
+      "ultimaInspecao": "2026-10-19",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "ausencia-de",
+    "descricao": "'Verificada a ausência de ...'.",
+    "texto": "Verificada a ausência de nematoide-das-galhas no talhão 26 (soja). Inspeção em 20/10/2026.",
+    "esperado": {
+      "entidades": ["PRAGA:nematoide-das-galhas!ausente", "TALHAO:talhão 26", "CULTURA:soja", "DATA:2026-10-20"],
+      "ultimaInspecao": "2026-10-20",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "documento-sem-conteudo",
+    "descricao": "Só uma data de emissão, sem inspeção nem entidades.",
+    "texto": "Documento sem informações fitossanitárias. Emitido em 21/10/2026.",
+    "esperado": {
+      "entidades": ["DATA:2026-10-21"],
+      "ultimaInspecao": null,
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "numeros-no-meio",
+    "descricao": "Percentuais e nível de controle no meio da frase.",
+    "texto": "Talhão 28 (algodão): bicudo-do-algodoeiro acima do nível de controle em 8% das plantas; ramulose presente. Inspeção em 22/10/2026.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 28", "CULTURA:algodão", "PRAGA:bicudo-do-algodoeiro", "DOENCA:ramulose", "DATA:2026-10-22"],
+      "ultimaInspecao": "2026-10-22",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "acento-faltando-e-plural",
+    "descricao": "'oidios' e 'antracnoses' (plural, sem acento).",
+    "texto": "Talhão 29 (soja): foram vistos oidios e antracnoses. Inspeção em 23/10/2026.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 29", "CULTURA:soja", "DOENCA:oídio", "DOENCA:antracnose", "DATA:2026-10-23"],
+      "ultimaInspecao": "2026-10-23",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "data-com-hifen",
+    "descricao": "Data com hífen.",
+    "texto": "Inspeção em 25-10-2026, talhão 31 (café): ferrugem-do-cafeeiro presente.",
+    "esperado": {
+      "entidades": ["DATA:2026-10-25", "TALHAO:talhão 31", "CULTURA:café", "DOENCA:ferrugem-do-cafeeiro"],
+      "ultimaInspecao": "2026-10-25",
+      "laudoNumero": null
+    }
+  },
+  {
+    "id": "talhao-com-numero-sinal",
+    "descricao": "'Talhão nº 32' e 'sem' antes da praga.",
+    "texto": "Talhão nº 32 (soja), inspeção em 26/10/2026, sem lagarta-da-soja.",
+    "esperado": {
+      "entidades": ["TALHAO:talhão 32", "CULTURA:soja", "DATA:2026-10-26", "PRAGA:lagarta-da-soja!ausente"],
+      "ultimaInspecao": "2026-10-26",
+      "laudoNumero": null
+    }
+  }
+]

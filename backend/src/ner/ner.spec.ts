@@ -58,6 +58,18 @@ describe('extractEntities', () => {
     expect([...x.negadas].sort()).toEqual(['antracnose', 'cercosporiose', 'mancha-alvo', 'mosca-branca']);
   });
 
+  it('entende a negação DEPOIS do termo, sem confundir com "não foi constatada Y"', () => {
+    const x = extractEntities('Cercosporiose ausente. Mosca-branca: não detectada.', DICT);
+    expect(x.doencas).toEqual([]);
+    expect(x.pragas).toEqual([]);
+    expect([...x.negadas].sort()).toEqual(['cercosporiose', 'mosca-branca']);
+
+    // aqui a negação vale para a mosca-branca; o percevejo-marrom (antes dela) continua presente
+    const y = extractEntities('Há percevejo-marrom, não foi constatada mosca-branca.', DICT);
+    expect(y.pragas).toEqual(['percevejo-marrom']);
+    expect(y.negadas).toEqual(['mosca-branca']);
+  });
+
   it('ignora datas impossíveis', () => {
     expect(extractEntities('Inspeção em 31/02/2026.', DICT).datas).toEqual([]);
   });
